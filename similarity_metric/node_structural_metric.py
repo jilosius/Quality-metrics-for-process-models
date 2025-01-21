@@ -125,13 +125,13 @@ class NodeStructuralBehavioralMetric(SimilarityMetric):
 
 
         # Debugging: Print neighbors
-        print(f"\nNode1: {node1}")
-        print(f"Incoming Neighbors of Node1: {incoming_neighbors1}")
-        print(f"Outgoing Neighbors of Node1: {outgoing_neighbors1}")
-        print("------")
-        print(f"Node2: {node2}")
-        print(f"Incoming Neighbors of Node2: {incoming_neighbors2}")
-        print(f"Outgoing Neighbors of Node2: {outgoing_neighbors2}\n")
+        # print(f"\nNode1: {node1}")
+        # print(f"Incoming Neighbors of Node1: {incoming_neighbors1}")
+        # print(f"Outgoing Neighbors of Node1: {outgoing_neighbors1}")
+        # print("------")
+        # print(f"Node2: {node2}")
+        # print(f"Incoming Neighbors of Node2: {incoming_neighbors2}")
+        # print(f"Outgoing Neighbors of Node2: {outgoing_neighbors2}\n")
 
 
         # Calculate optimal equivalence mappings for input and output contexts
@@ -142,13 +142,13 @@ class NodeStructuralBehavioralMetric(SimilarityMetric):
             outgoing_neighbors1, outgoing_neighbors2.copy(), graph1, graph2
         )
 
-        print(f"\nOptimal Input Mapping Size: {len(optimal_in_mapping)}")
-        print(f"Optimal Output Mapping Size: {len(optimal_out_mapping)}\n")
-        print(f"len(incoming_neighbors1): {len(incoming_neighbors1)}\n")
+        # print(f"\nOptimal Input Mapping Size: {len(optimal_in_mapping)}")
+        # print(f"Optimal Output Mapping Size: {len(optimal_out_mapping)}\n")
+        # print(f"len(incoming_neighbors1): {len(incoming_neighbors1)}\n")
         
-        print(f"len(incoming_neighbors2): {len(incoming_neighbors2)}\n")
-        print(f"len(outgoing_neighbors1): {len(outgoing_neighbors1)}\n")
-        print(f"len(outgoing_neighbors2): {len(outgoing_neighbors2)}\n")
+        # print(f"len(incoming_neighbors2): {len(incoming_neighbors2)}\n")
+        # print(f"len(outgoing_neighbors1): {len(outgoing_neighbors1)}\n")
+        # print(f"len(outgoing_neighbors2): {len(outgoing_neighbors2)}\n")
         
 
         if len(incoming_neighbors1) > 0 and len(incoming_neighbors2) > 0:
@@ -208,13 +208,13 @@ class NodeStructuralBehavioralMetric(SimilarityMetric):
 
                 combined_similarity = (label_similarity + type_similarity + contextual_similarity) / 3
                 # Print details of similarities
-                print(f"\nNode1: {node1}, Node2: {node2}")
-                print(f"  Syntactic Similarity: {syntactic_similarity}")
-                print(f"  Semantic Similarity: {semantic_similarity}")
-                print(f"  Label Similarity: {label_similarity}")
-                print(f"  Type Similarity: {type_similarity}")
-                print(f"  Contextual Similarity: {contextual_similarity}")
-                print(f"  Combined Similarity: {combined_similarity}")
+                # print(f"\nNode1: {node1}, Node2: {node2}")
+                # print(f"  Syntactic Similarity: {syntactic_similarity}")
+                # print(f"  Semantic Similarity: {semantic_similarity}")
+                # print(f"  Label Similarity: {label_similarity}")
+                # print(f"  Type Similarity: {type_similarity}")
+                # print(f"  Contextual Similarity: {contextual_similarity}")
+                # print(f"  Combined Similarity: {combined_similarity}")
                 if combined_similarity > best_match_score:
                     best_match_score = combined_similarity
                     best_match_node = node2
@@ -572,13 +572,13 @@ class NodeStructuralBehavioralMetric(SimilarityMetric):
         Calculate cosine similarity between two vectors.
         """
         
-        print("\nComparison of Vectors:")
-        print(f"{'Index':<10} {'Vector1':<20} {'Vector2':<20}")
-        print("-" * 50)
-        for i, (v1, v2) in enumerate(zip(vector1, vector2)):
-            print(f"{i:<10} {v1:<20} {v2:<20}")
+        # print("\nComparison of Vectors:")
+        # print(f"{'Index':<10} {'Vector1':<20} {'Vector2':<20}")
+        # print("-" * 50)
+        # for i, (v1, v2) in enumerate(zip(vector1, vector2)):
+        #     print(f"{i:<10} {v1:<20} {v2:<20}")
         
-        print("\n-------")
+        # print("\n-------")
 
 
         dot_product = np.dot(vector1, vector2)

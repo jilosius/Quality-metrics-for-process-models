@@ -1,7 +1,7 @@
 from process.process import Process
 
 import random
-import time
+import string
 
 class ChangeLabel:
     label_counter = 0  
@@ -15,9 +15,12 @@ class ChangeLabel:
 
     @staticmethod
     def generate_random_label():
-        timestamp = int(time.time())  # Time in seconds
+        """
+        Generate a random label of 10 characters.
+        """
         ChangeLabel.label_counter += 1
-        return f"Task_{timestamp}_{ChangeLabel.label_counter}"
+        random_string = ''.join(random.choices(string.ascii_letters + string.digits, k=10))
+        return f"{random_string}_{ChangeLabel.label_counter}"
 
     def apply(self, model: Process) -> Process:
         # Ensure there are FlowNodes available

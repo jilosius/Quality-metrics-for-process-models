@@ -116,40 +116,48 @@ class Process:
         ET.register_namespace("bpmn", bpmn_namespace)  # Register the namespace with the prefix 'bpmn'
 
         # Create the root BPMN element
-        definitions = ET.Element("{http://www.omg.org/spec/BPMN/20100524/MODEL}definitions")
+        definitions = ET.Element(f"{{{bpmn_namespace}}}definitions")
 
-        # Add pools and their lanes
-        for pool in self.pools:
-            participant = ET.SubElement(definitions, f"{{{bpmn_namespace}}}participant")
-            participant.set("id", pool.pool_id)
-            participant.set("name", pool.name)
+        # Initialize the process element as a standalone process
+        process = ET.SubElement(definitions, f"{{{bpmn_namespace}}}process")
 
-            process = ET.SubElement(definitions, f"{{{bpmn_namespace}}}process")
-            for lane in pool.lanes:
-                lane_set = ET.SubElement(process, f"{{{bpmn_namespace}}}laneSet")
-                lane_element = ET.SubElement(lane_set, f"{{{bpmn_namespace}}}lane")
-                lane_element.set("id", lane.lane_id)
-                for flow_node in lane.flowNodes:
-                    flow_node_ref = ET.SubElement(lane_element, f"{{{bpmn_namespace}}}flowNodeRef")
-                    flow_node_ref.text = flow_node.flowNode_id
+        # Add pools and their lanes if they exist
+        if self.pools:
+            for pool in self.pools:
+                participant = ET.SubElement(definitions, f"{{{bpmn_namespace}}}participant")
+                participant.set("id", pool.pool_id)
+                participant.set("name", pool.name)
+
+                # Add a new process for each pool
+                process = ET.SubElement(definitions, f"{{{bpmn_namespace}}}process")
+                for lane in pool.lanes:
+                    lane_set = ET.SubElement(process, f"{{{bpmn_namespace}}}laneSet")
+                    lane_element = ET.SubElement(lane_set, f"{{{bpmn_namespace}}}lane")
+                    lane_element.set("id", lane.lane_id)
+                    for flow_node in lane.flowNodes:
+                        flow_node_ref = ET.SubElement(lane_element, f"{{{bpmn_namespace}}}flowNodeRef")
+                        flow_node_ref.text = flow_node.flowNode_id
 
         # Add flow nodes
-        for flow_node in self.flowNodes:
-            node_element = ET.SubElement(process, f"{{{bpmn_namespace}}}{flow_node.type}")
-            node_element.set("id", flow_node.flowNode_id)
-            if flow_node.label:
-                node_element.set("name", flow_node.label)
+        if self.flowNodes:
+            for flow_node in self.flowNodes:
+                node_element = ET.SubElement(process, f"{{{bpmn_namespace}}}{flow_node.type}")
+                node_element.set("id", flow_node.flowNode_id)
+                if flow_node.label:
+                    node_element.set("name", flow_node.label)
 
         # Add flows (sequence flows)
-        for flow in self.flows:
-            flow_element = ET.SubElement(process, f"{{{bpmn_namespace}}}sequenceFlow")
-            flow_element.set("id", flow.id)
-            flow_element.set("sourceRef", flow.source.flowNode_id)
-            flow_element.set("targetRef", flow.target.flowNode_id)
-            if flow.label:
-                flow_element.set("name", flow.label)
+        if self.flows:
+            for flow in self.flows:
+                flow_element = ET.SubElement(process, f"{{{bpmn_namespace}}}sequenceFlow")
+                flow_element.set("id", flow.id)
+                flow_element.set("sourceRef", flow.source.flowNode_id)
+                flow_element.set("targetRef", flow.target.flowNode_id)
+                if flow.label:
+                    flow_element.set("name", flow.label)
 
         return ET.ElementTree(definitions)
+
 
     def print_process_state(self):
         # print(f"\n{message}")
