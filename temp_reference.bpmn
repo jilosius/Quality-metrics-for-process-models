@@ -1,2 +1,0 @@
-<?xml version='1.0' encoding='utf-8'?>
-<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"><bpmn:process><bpmn:startEvent id="StartEvent" name="Start" /><bpmn:endEvent id="EndEvent" name="End" /><bpmn:task id="test_activity" name="test" /><bpmn:sequenceFlow id="Flow_1" sourceRef="StartEvent" targetRef="test_activity" /><bpmn:sequenceFlow id="Flow_0a9na01" sourceRef="test_activity" targetRef="EndEvent" /></bpmn:process></bpmn:definitions>

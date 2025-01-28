@@ -6,26 +6,26 @@ from pm4py.objects.petri_net.utils.petri_utils import add_arc_from_to
 from pm4py.util import exec_utils
 from similarity_metric.similarity_metric import SimilarityMetric
 import pm4py
-
+from io_handler import IOHandler
+import numpy as np
 from pm4py.objects.petri_net.obj import PetriNet, Marking
 from typing import List, Tuple
-
-
-
-
-
+from process.process import Process
+from tabulate import tabulate
+from collections import deque
 
 class Parameters(Enum):
     USE_ID = "use_id"
 
 
-
 class ComplianceMetric(SimilarityMetric):
-    def __init__(self, reference_model=None, altered_model=None, label_similarity_threshold=0.8):
+    def __init__(self, reference_model=None, altered_model=None, file_path=None, output_path=None, label_similarity_threshold=0.8):
         super().__init__(reference_model, altered_model)
         self.reference_model = reference_model
         self.altered_model = altered_model
         self.label_similarity_threshold = label_similarity_threshold
+        self.file_path = file_path
+        self.output_path = output_path if output_path else "output_test.bpmn"
 
     def convert_to_petri_net(self, bpmn_path):
         """
@@ -35,190 +35,390 @@ class ComplianceMetric(SimilarityMetric):
             bpmn_path (str): Path to the BPMN file.
         
         Returns:
-            tuple: Petri net, initial marking, and final marking.
+            tuple: (PetriNet, initial_marking, final_marking)
         """
         # Load the BPMN model
         bpmn_graph = pm4py.read_bpmn(bpmn_path)
+        # pm4py.view_bpmn(bpmn_graph)
     
         # Convert BPMN to Petri net
         net, im, fm = self.apply(bpmn_graph)
 
-         # Visualize the Petri net
+        # # Visualize the Petri net
         # try:
         #     from pm4py.visualization.petri_net import visualizer as pn_visualizer
-
         #     print("Visualizing the Petri net...")
         #     gviz = pn_visualizer.apply(net, im, fm)
         #     pn_visualizer.view(gviz)  # Opens in the default viewer
         # except ImportError:
-        #     print("Petri net visualization skipped because the required visualization library is not available.")
+        #     print("Petri net visualization skipped (missing pm4py visualization libraries).")
         # except Exception as e:
         #     print(f"An error occurred during visualization: {e}")
 
         return net, im, fm
-    
-    
+
     def calculate_similarity(self, label1, label2, type1, type2):
         """Calculate syntactic/semantic similarity between labels."""
-        # print(f"Calculating similarity between labels: '{label1}' and '{label2}'")
-
         type_similarity = self.calculate_type_similarity(type1, type2)
-        # print(f"  Type similarity: {type_similarity}")
 
         if type_similarity == 1:
             syntactic_score = self.calculate_syntactic_similarity(label1, label2)
             semantic_score = self.calculate_semantic_similarity(label1, label2)
-            # print(f"  Syntactic similarity: {syntactic_score}\n  Semantic similarity: {semantic_score}")
-            
             return max(syntactic_score, semantic_score)
-        
         elif type_similarity == 0:
-            # print("Flow Nodes not of same type. Moving on..")
-            # print("-----------")
             return 0.0
-
         else:
             return 0.0
 
     def match_nodes(self, reference_flowNodes, altered_flowNodes):
-        """Match nodes from the altered model to the reference model based on label similarity."""
-        matches = []
-        
-        for alt_node in altered_flowNodes:  # Iterate over altered model nodes
-            best_match = None
-            best_score = 0
-            # print(f"\nAltered node: {alt_node.flowNode_id} ({alt_node.type})")
-            for ref_node in reference_flowNodes:  # Compare against reference model nodes
-                # print(f"  Reference node: {ref_node.flowNode_id} ({ref_node.type})")
-                similarity = self.calculate_similarity(alt_node.label, ref_node.label, alt_node.type, ref_node.type)
-                # print(f"Label Similarity: {similarity}")
-                # print("-----------")
-                if similarity > self.label_similarity_threshold and similarity > best_score:
-                    best_match = ref_node
-                    best_score = similarity
-            if best_match:
-                # print(f"  Best match for node '{alt_node.label}': '{best_match.label}' with score {best_score}")
-                matches.append((alt_node, best_match))
-            # else:
-                # print(f"  No match with same type & similarity > {self.label_similarity_threshold} found for node '{alt_node.label}'")
-        
+        """
+        Match nodes from the altered model to the reference model based on label similarity,
+        allowing one altered node to correspond to multiple reference nodes (many-to-one).
+
+        Args:
+            reference_flowNodes (list): Flow nodes from the reference model.
+            altered_flowNodes (list): Flow nodes from the altered model.
+
+        Returns:
+            dict: A mapping { altered_node : [list_of_reference_nodes] }.
+        """
+        matches = {}
+        for alt_node in altered_flowNodes:
+            matched_refs = []
+            for ref_node in reference_flowNodes:
+                similarity = self.calculate_similarity(
+                    alt_node.label,
+                    ref_node.label,
+                    alt_node.type,
+                    ref_node.type
+                )
+                # If similarity is above threshold, consider it a valid match
+                if similarity > self.label_similarity_threshold:
+                    matched_refs.append(ref_node)
+
+            # If this altered node matched any reference node(s), record them
+            if matched_refs:
+                matches[alt_node] = matched_refs
+
         return matches
-
-
+    
     def is_transition_enabled(self, transition: PetriNet.Transition, marking: Marking) -> bool:
         for arc in transition.in_arcs:
-            # print(f"Checking arc from {arc.source} with weight {arc.weight} and tokens {marking[arc.source]}")
             if marking[arc.source] < arc.weight:
-                # print("Transition not enabled due to insufficient tokens.")
                 return False
-        # print(f"Transition {transition} is enabled.")
         return True
-
 
     def fire_transition(self, transition: PetriNet.Transition, marking: Marking) -> Marking:
         new_marking = marking.copy()
-        # print(f"Firing Transition: {transition}")
         for arc in transition.in_arcs:
-            # print(f"Consuming {arc.weight} tokens from {arc.source}")
             new_marking[arc.source] -= arc.weight
         for arc in transition.out_arcs:
-            # print(f"Producing {arc.weight} tokens at {arc.target}")
             new_marking[arc.target] += arc.weight
-        # print("New Marking After Firing:", new_marking)
         return new_marking
 
-
-    def generate_all_firing_sequences(self, net: PetriNet, initial_marking: Marking, final_marking: Marking) -> List[List[PetriNet.Transition]]:
+    def is_petri_net_sound(self, net: PetriNet, initial_marking: Marking, final_marking: Marking) -> bool:
         """
-        Generates all firing sequences for a Petri net from the initial marking to the final marking.
+        Checks if the given Petri net is sound by performing a reachability analysis.
+        """
+        visited = set()
+        queue = [initial_marking]
 
-        Args:
-            net (PetriNet): The Petri net to explore.
-            initial_marking (Marking): The initial marking of the net.
-            final_marking (Marking): The final marking of the net.
+        def normalize_marking(marking):
+            # Normalize the marking into a consistent, sortable format
+            return tuple(sorted((place, tokens) for place, tokens in marking.items() if tokens > 0))
 
-        Returns:
-            List[List[PetriNet.Transition]]: A list of all possible firing sequences.
+        normalized_final_marking = normalize_marking(final_marking)
+
+        # print("Starting soundness check...")
+        # print(f"Initial marking: {normalize_marking(initial_marking)}")
+        # print(f"Final marking: {normalized_final_marking}")
+
+        while queue:
+            current_marking = queue.pop(0)
+            normalized_marking = normalize_marking(current_marking)
+
+            # print(f"Visiting marking: {normalized_marking}")
+
+            # If we reach the final marking, check token cleanup
+            if normalized_marking == normalized_final_marking:
+                # Ensure no tokens are left in places outside the final marking
+                for place, tokens in current_marking.items():
+                    if place not in final_marking and tokens > 0:
+                        # print(f"Tokens remain in non-final place: {place} -> {tokens} tokens.")
+                        return False
+                # print("Final marking reached successfully.")
+                continue
+
+            # Check if this marking was already visited
+            if normalized_marking in visited:
+                # print(f"Marking already visited: {normalized_marking}")
+                continue
+            visited.add(normalized_marking)
+
+            # Get all enabled transitions
+            enabled_transitions = [
+                t for t in net.transitions if self.is_transition_enabled(t, current_marking)
+            ]
+
+            # print(f"Enabled transitions from {normalized_marking}: {[t.label for t in enabled_transitions]}")
+
+            # If no transitions are enabled and it's not the final marking, it's a deadlock
+            if not enabled_transitions:
+                # print(f"Deadlock detected at marking: {normalized_marking}")
+                return False
+
+            # Fire transitions and add new markings to the queue
+            for transition in enabled_transitions:
+                new_marking = self.fire_transition(transition, current_marking)
+                # print(f"Firing transition {transition.label}: New marking -> {normalize_marking(new_marking)}")
+                queue.append(new_marking)
+
+        print("Petri net is sound.")
+        return True
+
+    def generate_all_firing_sequences(self, net: PetriNet, initial_marking: Marking, final_marking: Marking, unroll_factor=2) -> List[List[PetriNet.Transition]]:
+        """
+        Generates all firing sequences for a Petri net from the initial marking to the final marking,
+        ensuring start and end events are visited exactly once and allowing limited exploration of cycles.
         """
         all_sequences = []
 
-        def dfs(marking, current_sequence):
-            # Normalize markings for comparison
-            normalized_marking = {k: v for k, v in marking.items() if v > 0}
-            normalized_final_marking = {k: v for k, v in final_marking.items() if v > 0}
+        # Identify start and end transitions (safely handle None labels)
+        start_transitions = [t for t in net.transitions if t.label and (t.label.lower() == "start" or "startevent" in t.label.lower())]
+        end_transitions = [t for t in net.transitions if t.label and (t.label.lower() == "end" or "endevent" in t.label.lower())]
 
-            # Check if the final marking is reached
+        def normalize_marking(marking):
+            return tuple(sorted((getattr(place, 'name', str(place)), tokens) for place, tokens in marking.items() if tokens > 0))
+
+        def dfs(marking, current_sequence, visit_count, start_visit_count, end_visit_count):
+            normalized_marking = normalize_marking(marking)
+            normalized_final_marking = normalize_marking(final_marking)
+
+            # Stop recursion if we reached the final marking
             if normalized_marking == normalized_final_marking:
                 all_sequences.append(current_sequence[:])
                 return
 
+            # Check visit count for this marking
+            if visit_count.get(normalized_marking, 0) >= unroll_factor:
+                return
+            visit_count[normalized_marking] = visit_count.get(normalized_marking, 0) + 1
+
+            # Count visits to start and end transitions
+            last_transition = current_sequence[-1] if current_sequence else None
+            if last_transition in start_transitions:
+                start_visit_count += 1
+            if last_transition in end_transitions:
+                end_visit_count += 1
+
+            # Exclude sequences that revisit start or end transitions
+            if start_visit_count > 1 or end_visit_count > 1:
+                return
+
             # Get all enabled transitions
-            enabled_transitions = [t for t in net.transitions if self.is_transition_enabled(t, marking)]
+            enabled_transitions = [
+                t for t in net.transitions if self.is_transition_enabled(t, marking)
+            ]
 
             for transition in enabled_transitions:
-                # Fire the transition
+                # Fire the transition to get the new marking
                 new_marking = self.fire_transition(transition, marking)
-                # Add the transition to the current sequence
+                # Add the transition to the current sequence and recurse
                 current_sequence.append(transition)
-                # Continue searching
-                dfs(new_marking, current_sequence)
+                dfs(new_marking, current_sequence, visit_count.copy(), start_visit_count, end_visit_count)
                 # Backtrack
                 current_sequence.pop()
 
-
-        dfs(initial_marking, [])
+        dfs(initial_marking, [], {}, 0, 0)
         return all_sequences
 
+    def calculate_lcs(self, seq1, seq2):
+        """
+        Calculate the length of the Longest Common Subsequence (LCS) between two sequences.
+        Ignores "Unmapped" placeholders and uses Transition labels for comparison.
 
+        Args:
+            seq1 (list): First sequence (e.g., reference).
+            seq2 (list): Second sequence (e.g., altered, mapped).
 
+        Returns:
+            int: Length of the LCS.
+        """
+        # Extract labels from Transition objects
+        seq1_labels = [item.label for item in seq1]
+        seq2_labels = [item.label for item in seq2]
 
+        # Initialize DP table
+        dp = [[0] * (len(seq1_labels) + 1) for _ in range(len(seq2_labels) + 1)]
 
-    def compute_metric(self, process_object1, process_object2):
+        # Fill DP table
+        for i in range(1, len(seq2_labels) + 1):
+            for j in range(1, len(seq1_labels) + 1):
+                if seq1_labels[j - 1] == seq2_labels[i - 1]:
+                    dp[i][j] = dp[i - 1][j - 1] + 1
+                else:
+                    dp[i][j] = max(dp[i - 1][j], dp[i][j - 1])
+
+        # Debugging: Print the annotated DP table
+        # print("Final Annotated DP Table:")
+        # self.print_annotated_dp_table(dp, seq1_labels, seq2_labels)
+
+        # Return the LCS length
+        return dp[-1][-1]
+
+    def get_mapped_firing_sequences(self, alt_sequences, granularity_mapping):
             """
-            Computes the compliance metric for two given process objects.
-            
-            :param process_object1: The reference process object.
-            :param process_object2: The target process object to evaluate.
-            :return: Compliance metric value.
+            Generate mapped firing sequences using the granularity mapping.
+
+            Args:
+                alt_sequences (list): Firing sequences from the altered model.
+                granularity_mapping (dict): Mapping of altered model transitions to reference model transitions.
+
+            Returns:
+                list: Mapped firing sequences.
             """
-            # Convert both process objects to WF-nets
-            wf_net1 = self.convert_to_wf_net(process_object1)
-            wf_net2 = self.convert_to_wf_net(process_object2)
+            mapped_sequences = []
+            for seq in alt_sequences:
+                mapped_seq = [granularity_mapping.get(transition, transition) for transition in seq]
+                mapped_sequences.append(mapped_seq)
+            return mapped_sequences
 
-            # Extract firing sequences for both WF-nets
-            firing_sequences1 = self.extract_firing_sequences(wf_net1)
-            firing_sequences2 = self.extract_firing_sequences(wf_net2)
+    def get_extended_firing_sequences(self, ref_sequences):
+        """
+        Generate extended firing sequences by applying user-selected partitions.
 
-            # Placeholder: Perform compliance calculation (to be implemented)
-            # For now, return the number of firing sequences in both models as a placeholder value
-            return {
-                "firing_sequences_model1": len(firing_sequences1),
-                "firing_sequences_model2": len(firing_sequences2)
-            }
+        Args:
+            ref_sequences (list): Firing sequences from the reference model.
 
+        Returns:
+            list: Extended firing sequences.
+        """
+        # Apply exclusion and ordering based on user-selected partitions
+        # Placeholder: Return sequences as-is for now
+        return ref_sequences
 
     def calculate(self):
         """
-        Placeholder implementation for the abstract calculate method.
+        Calculate compliance metrics (Compliance Degree and Compliance Maturity).
+        
+        Returns:
+            dict: A dictionary containing Compliance Degree and Compliance Maturity values.
         """
-        return {"placeholder_result": 0}
-    
 
-    #from python docs
-    def build_digraph_from_petri_net(self,net):
+        # Apply granularity mapping
+        granularity_mapping = self.match_nodes(self.reference_model.flowNodes, self.altered_model.flowNodes)
+        
+       
+
+        # Convert BPMN models to WF-nets
+        net_ref, im_ref, fm_ref = self.convert_to_petri_net(self.file_path)
+        self.print_petri_net_details(net_ref, im_ref, fm_ref)
+
+        altered_bpmn_tree = self.altered_model.to_bpmn()
+        IOHandler.write_bpmn(altered_bpmn_tree, self.output_path)
+
+        net_alt, im_alt, fm_alt = self.convert_to_petri_net(self.output_path)
+        self.print_petri_net_details(net_alt, im_alt, fm_alt)
+
+
+
+        print("\nGranularity Mapping:\n")
+        # print(granularity_mapping)
+        for alt_node, ref_nodes in granularity_mapping.items():
+            # alt_node is a single altered node
+            # ref_nodes is now a *list* of reference nodes
+            alt_id = alt_node.flowNode_id
+            ref_ids = [rn.flowNode_id for rn in ref_nodes]
+
+            print(f"{alt_id} : {ref_ids}")
+
+
+
+        # Generate firing sequences
+        ref_sequences = self.generate_all_firing_sequences(net_ref, im_ref, fm_ref)
+        print("\nReference Model Firing Sequences:")
+        for seq in ref_sequences:
+            print(", ".join([t.label if t.label is not None else "InvisibleTransition" for t in seq]))
+        print("\n------------\n")
+
+        alt_sequences = self.generate_all_firing_sequences(net_alt, im_alt, fm_alt)
+
+        print("Altered Model Firing Sequences:")
+        for seq in alt_sequences:
+            print(", ".join([t.label if t.label is not None else "InvisibleTransition" for t in seq]))
+        print("\n------------\n")
+
+        
+
+        # Compute extended and mapped firing sequences
+        ext_ref_sequences = self.get_extended_firing_sequences(ref_sequences)
+        print("\nExtended Firing Sequences:")
+        for seq in ext_ref_sequences:
+            print(", ".join([t.label if t.label is not None else "None" for t in seq]))
+
+        
+        
+        map_alt_sequences = self.get_mapped_firing_sequences(alt_sequences, granularity_mapping)
+        print("\nMapped Altered Firing Sequences:")
+        for seq in map_alt_sequences:
+            print(", ".join([t.label if t.label is not None else "None" for t in seq]))
+
+        # Calculate FSC (Firing Sequence Compliance) for each pair of sequences
+        fsc_values = []
+        for alt_seq in map_alt_sequences:
+            max_fsc = 0
+            for ref_seq in ext_ref_sequences:
+                max_fsc = max(max_fsc, self.calculate_lcs(ref_seq, alt_seq))
+            fsc_values.append(max_fsc)
+
+        # Calculate compliance metrics
+        fscd_values = [] 
+        for fsc, seq in zip(fsc_values, map_alt_sequences):  
+            if len(seq) > 0:  
+                fscd = fsc / len(seq)  # Calculate FSC Degree (FSC divided by the sequence length)
+            else:
+                fscd = 0  
+            fscd_values.append(fscd)  # Append the calculated FSCD value to the list
+
+
+        fscm_values = [] 
+        for fsc, seq in zip(fsc_values, ext_ref_sequences):  
+            if len(seq) > 0: 
+                fscm = fsc / len(seq)  # Calculate FSC Maturity (FSC divided by the sequence length)
+            else:
+                fscm = 0 
+            fscm_values.append(fscm)  # Append the calculated FSCM value to the list
+
+        # Debug FSC Values
+        print("\nFSC Values:")
+        print(fsc_values)
+
+        # Debug FSCD and FSCM Values
+        print("\nFSCD Values:")
+        print(fscd_values)
+
+        print("\nFSCM Values:")
+        print(fscm_values)
+
+
+        compliance_degree = np.mean(fscd_values) if fscd_values else 0
+        compliance_maturity = np.mean(fscm_values) if fscm_values else 0
+        
+        print("\nCompliance_Degree:")
+        print(compliance_degree)
+
+        print("\nCompliance_Maturity:")
+        print(compliance_maturity)
+
+
+        return {
+            "compliance_degree": compliance_degree,
+            "compliance_maturity": compliance_maturity,
+        }
+
+    def build_digraph_from_petri_net(self, net):
         """
-        Builds a directed graph from a Petri net
-            (for the purpose to add invisibles between inclusive gateways)
-
-        Parameters
-        -------------
-        net
-            Petri net
-
-        Returns
-        -------------
-        digraph
-            Digraph
+        Builds a directed graph from a Petri net (for custom analysis).
         """
         import networkx as nx
         graph = nx.DiGraph()
@@ -237,11 +437,11 @@ class ComplianceMetric(SimilarityMetric):
         Converts a BPMN graph to an accepting Petri net, excluding Pools.
 
         Args:
-            bpmn_graph: BPMN graph.
-            parameters: Parameters of the algorithm.
+            bpmn_graph: The BPMN graph (pm4py.objects.bpmn.obj.BPMN).
+            parameters: Optional parameters dict.
 
         Returns:
-            tuple: Petri net, initial marking, and final marking.
+            tuple: (PetriNet, initial_marking, final_marking)
         """
         if parameters is None:
             parameters = {}
@@ -251,6 +451,9 @@ class ComplianceMetric(SimilarityMetric):
 
         use_id = exec_utils.get_param_value(Parameters.USE_ID, parameters, False)
 
+        # --------------------------------------------------------------------------
+        # 1. Create a new Petri net and add a 'source' and 'sink' place
+        # --------------------------------------------------------------------------
         net = PetriNet("")
         source_place = PetriNet.Place("source")
         net.places.add(source_place)
@@ -261,176 +464,279 @@ class ComplianceMetric(SimilarityMetric):
         im[source_place] = 1
         fm[sink_place] = 1
 
+        # --------------------------------------------------------------------------
+        # 2. Identify "non-pool" BPMN nodes (Tasks, Events, Gateways, etc.).
+        #    Collect both the objects and their IDs.
+        # --------------------------------------------------------------------------
+        valid_types = (
+            BPMN.Task,
+            BPMN.Event,
+            BPMN.ParallelGateway,
+            BPMN.InclusiveGateway,
+            BPMN.ExclusiveGateway,
+            BPMN.IntermediateCatchEvent,
+            BPMN.IntermediateThrowEvent,
+            BPMN.NormalIntermediateThrowEvent,
+            BPMN.MessageIntermediateCatchEvent,
+            BPMN.MessageIntermediateThrowEvent
+        )
+
         non_pool_nodes = [
             node for node in bpmn_graph.get_nodes()
-            if not isinstance(node, (BPMN.Collaboration, BPMN.Participant))  # Exclude pools and collaborations
-            and isinstance(node, (BPMN.Task, BPMN.Event, BPMN.ParallelGateway, BPMN.InclusiveGateway, BPMN.ExclusiveGateway, BPMN.IntermediateCatchEvent, BPMN.IntermediateThrowEvent))  # Explicit gateway types
+            if not isinstance(node, (BPMN.Collaboration, BPMN.Participant)) 
+            and isinstance(node, valid_types)
         ]
+        non_pool_node_ids = {node.get_id() for node in non_pool_nodes}
 
-        # Filter flows to exclude any connected to Pools
-        non_pool_flows = [
-            flow for flow in bpmn_graph.get_flows()
-            if flow.get_source() in non_pool_nodes and flow.get_target() in non_pool_nodes
-        ]
+        # --------------------------------------------------------------------------
+        # 3. Filter flows based on ID membership. We check flow.source_id and
+        #    flow.target_id (or flow.get_source().get_id() / get_target().get_id()).
+        # --------------------------------------------------------------------------
+        non_pool_flows = []
+        for flow in bpmn_graph.get_flows():
+            src_id = flow.get_source().get_id()
+            tgt_id = flow.get_target().get_id()
+            if src_id in non_pool_node_ids and tgt_id in non_pool_node_ids:
+                non_pool_flows.append(flow)
 
+        # print(f"\n Non-pool flows: {non_pool_flows}\n")
 
-        # Map flow places and counts
+        # --------------------------------------------------------------------------
+        # 4. Create a Place object for each flow (flow_place),
+        #    track how many incoming/outgoing flows each node has.
+        # --------------------------------------------------------------------------
         flow_place = {}
         source_count = {}
         target_count = {}
         for flow in non_pool_flows:
-            source = flow.get_source()
-            target = flow.get_target()
+            source_node = flow.get_source()
+            target_node = flow.get_target()
             place = PetriNet.Place(str(flow.get_id()))
             net.places.add(place)
             flow_place[flow] = place
-            if source not in source_count:
-                source_count[source] = 0
-            if target not in target_count:
-                target_count[target] = 0
-            source_count[source] += 1
-            target_count[target] += 1
 
-        # Process non-pool nodes
+            source_count[source_node] = source_count.get(source_node, 0) + 1
+            target_count[target_node] = target_count.get(target_node, 0) + 1
+
+        # --------------------------------------------------------------------------
+        # 5. Create Petri places/transitions for each non-pool node.
+        #    - We separate "entry" (ent_...) and "exit" (exi_...) places for each node
+        #    - Then add a single transition in between them
+        # --------------------------------------------------------------------------
         nodes_entering = {}
         nodes_exiting = {}
+
         for node in non_pool_nodes:
+            # print(f"Processing node: {node.get_id()}, type: {type(node)}, name: {node.get_name()}")
+
             entry_place = PetriNet.Place("ent_" + str(node.get_id()))
             net.places.add(entry_place)
+            # print(f"\n{entry_place}")
+
             exiting_place = PetriNet.Place("exi_" + str(node.get_id()))
             net.places.add(exiting_place)
+
+            # Use either ID or name as the transition label
             if use_id:
                 label = str(node.get_id())
             else:
-                label = str(node.get_name()) if isinstance(node, BPMN.Task) else None
-                if not label:
-                    label = None
-            transition = PetriNet.Transition(name=str(node.get_id()), label=label)
+                # If this is a task, use node.get_name(); else None
+                label = None
+                if isinstance(node, 
+                              (BPMN.Task,BPMN.IntermediateCatchEvent,
+                               BPMN.IntermediateThrowEvent,
+                               BPMN.NormalIntermediateThrowEvent,
+                               BPMN.MessageIntermediateCatchEvent,
+                               BPMN.MessageIntermediateThrowEvent)):
+                    label = node.get_name() if node.get_name() else ""
+
+            # The "main" transition that represents this BPMN node
+            transition = PetriNet.Transition(
+                name=str(node.get_id()), 
+                label=label
+            )
             net.transitions.add(transition)
+
             add_arc_from_to(entry_place, transition, net)
             add_arc_from_to(transition, exiting_place, net)
 
-            # Handle gateways
-            if isinstance(node, BPMN.ParallelGateway) or isinstance(node, BPMN.InclusiveGateway):
-                if source_count[node] > 1:
-                    exiting_object = PetriNet.Transition(str(uuid.uuid4()), None)
-                    net.transitions.add(exiting_object)
-                    add_arc_from_to(exiting_place, exiting_object, net)
+            # Handle the special Parallel/Inclusive gateway logic
+            if isinstance(node, (BPMN.ParallelGateway, BPMN.InclusiveGateway)):
+                # If more than one incoming flow, we need an extra "join" transition
+                if source_count.get(node, 0) > 1:
+                    join_trans = PetriNet.Transition(str(uuid.uuid4()), None)
+                    net.transitions.add(join_trans)
+                    add_arc_from_to(exiting_place, join_trans, net)
+                    exiting_object = join_trans
                 else:
                     exiting_object = exiting_place
 
-                if target_count[node] > 1:
-                    entering_object = PetriNet.Transition(str(uuid.uuid4()), None)
-                    net.transitions.add(entering_object)
-                    add_arc_from_to(entering_object, entry_place, net)
+                # If more than one outgoing flow, we need an extra "split" transition
+                if target_count.get(node, 0) > 1:
+                    split_trans = PetriNet.Transition(str(uuid.uuid4()), None)
+                    net.transitions.add(split_trans)
+                    add_arc_from_to(split_trans, entry_place, net)
+                    entering_object = split_trans
                 else:
                     entering_object = entry_place
                 nodes_entering[node] = entering_object
                 nodes_exiting[node] = exiting_object
+
             else:
                 nodes_entering[node] = entry_place
                 nodes_exiting[node] = exiting_place
 
-
-
-
-            # Handle Start and End events
+            # Handle start events
             if isinstance(node, BPMN.StartEvent):
-                start_transition = PetriNet.Transition(node.get_id(), node.get_name())
-                net.transitions.add(start_transition)
-                add_arc_from_to(source_place, start_transition, net)
-                add_arc_from_to(start_transition, entry_place, net)
+                start_trans = PetriNet.Transition(node.get_id(), node.get_name())
+                net.transitions.add(start_trans)
+                add_arc_from_to(source_place, start_trans, net)
+                add_arc_from_to(start_trans, entry_place, net)
+
+            # Handle end events
             elif isinstance(node, BPMN.EndEvent):
-                end_transition = PetriNet.Transition(node.get_id(), node.get_name())
-                net.transitions.add(end_transition)
-                add_arc_from_to(exiting_place, end_transition, net)
-                add_arc_from_to(end_transition, sink_place, net)
+                end_trans = PetriNet.Transition(node.get_id(), node.get_name())
+                net.transitions.add(end_trans)
+                add_arc_from_to(exiting_place, end_trans, net)
+                add_arc_from_to(end_trans, sink_place, net)
 
-            # if isinstance(node, BPMN.ExclusiveGateway):
-            #     # Exclusive Split
-            #     exiting_object = exiting_place  # Use the existing place representing the gateway
-
-            #     for flow in [f for f in non_pool_flows if f.get_source() == node]:
-            #         # Add an intermediate transition for each outgoing flow
-            #         intermediate_transition = PetriNet.Transition(f"trans_{str(uuid.uuid4())}", None)
-            #         net.transitions.add(intermediate_transition)
-
-            #         # Connect the gateway's existing place to the intermediate transition
-            #         add_arc_from_to(exiting_object, intermediate_transition, net)
-
-            #         # Connect the intermediate transition to the flow's place
-            #         flow_place_obj = flow_place[flow]
-            #         add_arc_from_to(intermediate_transition, flow_place_obj, net)
-
-
-                
-            #     # Exclusive Join
-            #     entering_object = entry_place  # Use the existing place representing the gateway
-
-            #     for flow in [f for f in non_pool_flows if f.get_target() == node]:
-            #         # Add an intermediate transition for each incoming flow
-            #         intermediate_transition = PetriNet.Transition(f"trans_{str(uuid.uuid4())}", None)
-            #         net.transitions.add(intermediate_transition)
-
-            #         # Connect the flow's place to the intermediate transition
-            #         flow_place_obj = flow_place[flow]
-            #         add_arc_from_to(flow_place_obj, intermediate_transition, net)
-
-            #         # Connect the intermediate transition to the gateway's existing place
-            #         add_arc_from_to(intermediate_transition, entering_object, net)
-
-
-
-
-            
-
-            
-
-        # Process non-pool flows
+        # --------------------------------------------------------------------------
+        # 6. Create arcs for the flows themselves:
+        #    - link the node's "exiting" object to this flow's place,
+        #      and the flow's place to the node's "entering" object
+        # --------------------------------------------------------------------------
         for flow in non_pool_flows:
-            source_object = nodes_exiting[flow.get_source()]
-            target_object = nodes_entering[flow.get_target()]
+            source_node = flow.get_source()
+            target_node = flow.get_target()
 
+            source_object = nodes_exiting[source_node]
+            target_object = nodes_entering[target_node]
+            
+            # If either source_object or target_object is a Place, 
+            # we might insert an invisible transition to keep correct semantics.
             if isinstance(source_object, PetriNet.Place):
-                inv1 = PetriNet.Transition(str(uuid.uuid4()), None)
-                net.transitions.add(inv1)
-                add_arc_from_to(source_object, inv1, net)
-                source_object = inv1
+                inv_trans = PetriNet.Transition(str(uuid.uuid4()), None)
+                net.transitions.add(inv_trans)
+                add_arc_from_to(source_object, inv_trans, net)
+                source_object = inv_trans
 
             if isinstance(target_object, PetriNet.Place):
-                inv2 = PetriNet.Transition(str(uuid.uuid4()), None)
-                net.transitions.add(inv2)
-                add_arc_from_to(inv2, target_object, net)
-                target_object = inv2
+                inv_trans = PetriNet.Transition(str(uuid.uuid4()), None)
+                net.transitions.add(inv_trans)
+                add_arc_from_to(inv_trans, target_object, net)
+                target_object = inv_trans
 
+            # Finally connect them via the flow place
             add_arc_from_to(source_object, flow_place[flow], net)
             add_arc_from_to(flow_place[flow], target_object, net)
 
-        # Apply reduction
+        # --------------------------------------------------------------------------
+        # 7. Optionally apply a basic Petri net reduction to simplify
+        #    (comment out if the net becomes too "disconnected")
+        # --------------------------------------------------------------------------
         reduction.apply_simple_reduction(net)
 
         return net, im, fm
 
-    # def visualize_petri_net(self,net, im, fm):
+
+    def print_petri_net_details(self, petri_net, initial_marking, final_marking):
+        """
+        Prints the details of a Petri net in a readable format.
+
+        Args:
+            petri_net: The Petri net object.
+            initial_marking: The initial marking of the Petri net.
+            final_marking: The final marking of the Petri net.
+        """
+        print("\nPlaces:")
+        print("-------")
+        for place in petri_net.places:
+            print(f"- {place.name}")
+
+        print("\nTransitions:")
+        print("------------")
+        for transition in petri_net.transitions:
+            label = transition.label if transition.label else "None"
+            print(f"- {transition.name} (label: {label})")
+
+        print("\nArcs:")
+        print("------")
+        for arc in petri_net.arcs:
+            source = arc.source.name
+            target = arc.target.name
+            print(f"- {source} -> {target}")
+
+        print("\nInitial Marking:")
+        print("-----------------")
+        for place, tokens in initial_marking.items():
+            print(f"- {place.name}: {tokens} token(s)")
+
+        print("\nFinal Marking:")
+        print("---------------")
+        for place, tokens in final_marking.items():
+            print(f"- {place.name}: {tokens} token(s)")
+
+
+    def print_annotated_dp_table(self, dp, seq1, seq2):
+        """
+        Prints the DP table with annotated headers for better debugging and visualization using tabulate.
+
+        Args:
+            dp (list of list): The DP table as a 2D list or numpy array.
+            seq1 (list): Sequence 1 (e.g., reference sequence).
+            seq2 (list): Sequence 2 (e.g., altered sequence).
+        """
+        # Add a placeholder for the empty sequence (∅)
+        seq1 = ["∅"] + [str(elem) if elem is not None else "None" for elem in seq1]
+        seq2 = ["∅"] + [str(elem) if elem is not None else "None" for elem in seq2]
+
+        # Prepare the table data
+        table_data = []
+        for i, row in enumerate(dp):
+            table_data.append([seq2[i]] + row)  # Add the row header and row data
+
+        # Print the table using tabulate
+        print(tabulate(table_data, headers=seq1, tablefmt="grid"))
+
+
+
+    # def visualize_petri_net(self, net, im, fm):
     #     """
     #     Visualizes the Petri net with its initial and final markings.
-
-    #     Args:
-    #         net: The Petri net object.
-    #         im: Initial marking.
-    #         fm: Final marking.
     #     """
-    #     # Visualize the Petri net
     #     try:
     #         from pm4py.visualization.petri_net import visualizer as pn_visualizer
-
     #         print("Visualizing the Petri net...")
     #         gviz = pn_visualizer.apply(net, im, fm)
-    #         pn_visualizer.view(gviz)  # Opens in the default viewer
+    #         pn_visualizer.view(gviz)
     #     except ImportError:
-    #         print("Petri net visualization skipped because the required visualization library is not available.")
+    #         print("Petri net visualization skipped (missing pm4py visualization libraries).")
     #     except Exception as e:
     #         print(f"An error occurred during visualization: {e}")
 
     #     return net, im, fm
+
+
+
+        # def compute_metric(self, process_object1, process_object2):
+    #     """
+    #     Computes the compliance metric for two given process objects.
+        
+    #     :param process_object1: The reference process object.
+    #     :param process_object2: The target process object to evaluate.
+    #     :return: A dictionary with some placeholder values (example).
+    #     """
+    #     # Convert both process objects to WF-nets
+    #     wf_net1 = self.convert_to_wf_net(process_object1)
+    #     wf_net2 = self.convert_to_wf_net(process_object2)
+
+    #     # Extract firing sequences for both WF-nets
+    #     firing_sequences1 = self.extract_firing_sequences(wf_net1)
+    #     firing_sequences2 = self.extract_firing_sequences(wf_net2)
+
+    #     # Placeholder for a real compliance calculation
+    #     return {
+    #         "firing_sequences_model1": len(firing_sequences1),
+    #         "firing_sequences_model2": len(firing_sequences2)
+    #     }
 

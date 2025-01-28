@@ -55,17 +55,25 @@ class AddFlowNode:
             return model
 
         # Step 5: Randomly select source and target nodes
-        # Exclude the newly added node as a source
-        potential_sources = [node for node in model.flowNodes if node != new_node]
+        # End nodes cannot have outgoing flows
+        potential_sources = [
+            node for node in model.flowNodes
+            if node != new_node and node.type.lower() != "endevent"
+        ]
+        if not potential_sources:
+            print(f"No valid source nodes available for {element_label}.")
+            return model
         source_node = random.choice(potential_sources)
 
-        # Ensure the target node is not the same as the source node
-        while True:
-            target_node = random.choice(model.flowNodes)
-            if target_node != source_node:
-                break
-
-
+        # Start nodes cannot have incoming flows
+        potential_targets = [
+            node for node in model.flowNodes
+            if node != source_node and node != new_node and node.type.lower() != "startevent"
+        ]
+        if not potential_targets:
+            print(f"No valid target nodes available for {element_label}.")
+            return model
+        target_node = random.choice(potential_targets)
 
         # Step 6: Create new flows
         ModelAlteration.flow_count += 1

@@ -12,11 +12,22 @@ class AddFlow:
             print("Not enough nodes to add a flow.")
             return model
 
-        # Randomly select a source node
-        source_node = random.choice(model.flowNodes)
+        # Filter potential source nodes to exclude EndEvent (no outgoing flows)
+        potential_sources = [
+            node for node in model.flowNodes if node.type.lower() != "endevent"
+        ]
+        if not potential_sources:
+            print("No valid source nodes available to add a flow.")
+            return model
+        source_node = random.choice(potential_sources)
 
-        # Filter potential targets to exclude the source node
-        potential_targets = [node for node in model.flowNodes if node != source_node]
+        # Filter potential target nodes to exclude StartEvent (no incoming flows)
+        potential_targets = [
+            node for node in model.flowNodes if node != source_node and node.type.lower() != "startevent"
+        ]
+        if not potential_targets:
+            print("No valid target nodes available to add a flow.")
+            return model
         target_node = random.choice(potential_targets)
 
         # Generate a unique ID for the new flow

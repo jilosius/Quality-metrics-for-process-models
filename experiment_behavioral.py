@@ -54,6 +54,7 @@ class Experiment:
                 altered_model = model_alteration.altered_model
                 node_structural_scores = SimilarityMetric.get_metric(metric_names[0], reference_model, altered_model).calculate()
                 f1_scores = SimilarityMetric.get_metric(metric_names[1], reference_model, altered_model).calculate()
+                compliance_scores = SimilarityMetric.get_metric(metric_names[2], reference_model, altered_model,file_path, "output_test.bpmn").calculate()
 
                 # Store the results
                 self.results.append( (
@@ -65,7 +66,10 @@ class Experiment:
                     node_structural_scores.get("behavioral_similarity", 0),
                     f1_scores.get("Precision", 0),
                     f1_scores.get("Recall", 0),
-                    f1_scores.get("F1 Score", 0)
+                    f1_scores.get("F1 Score", 0),
+                    compliance_scores.get("compliance_degree", 0),
+                    compliance_scores.get("compliance_maturity", 0)
+
                 ))
 
             # Increment the number of alterations
@@ -85,13 +89,13 @@ class Experiment:
             # Write header
             writer.writerow([
                 "Alteration Count", "Repetition", "Alteration Type", "Node Similarity",
-                "Structural Similarity", "Behavioral Similarity", "Precision", "Recall", "F1-Score"
+                "Structural Similarity", "Behavioral Similarity", "Precision", "Recall", "F1-Score", "Compliance Degree", "Compliance Maturity"
             ])
             # Write data
-            for alteration_count, repetition, alteration_type, node_sim, struct_sim, behav_sim, precision, recall, f1_score in self.results:
+            for alteration_count, repetition, alteration_type, node_sim, struct_sim, behav_sim, precision, recall, f1_score, compliance_degree, compliance_maturity in self.results:
                 writer.writerow([
                     alteration_count, repetition, alteration_type, node_sim, struct_sim,
-                    behav_sim, precision, recall, f1_score
+                    behav_sim, precision, recall, f1_score, compliance_degree, compliance_maturity
                 ])
 
 
@@ -109,7 +113,7 @@ if __name__ == "__main__":
 
     start_time = time.time()
     experiment = Experiment(args.alteration_type, args.max_alterations)
-    experiment.simulate_alterations(args.file_path, ["NodeStructuralBehavioralMetric", "F1Score"], args.output_csv)
+    experiment.simulate_alterations(args.file_path, ["NodeStructuralBehavioralMetric", "F1Score", "ComplianceMetric"], args.output_csv)
 
     end_time = time.time()
 

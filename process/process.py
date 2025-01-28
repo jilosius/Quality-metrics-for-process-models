@@ -4,7 +4,7 @@ from .lane import Lane
 from .data_obj import DataObj
 import xml.etree.ElementTree as ET
 from .pool import Pool
-
+import uuid
 import copy
 
 class Process:
@@ -105,7 +105,7 @@ class Process:
                         self.flows.append(flow)
 
         return self
-
+    
     def to_bpmn(self):
         """
         Converts the Process object back into a BPMN XML tree with the correct namespace prefix.
@@ -121,43 +121,65 @@ class Process:
         # Initialize the process element as a standalone process
         process = ET.SubElement(definitions, f"{{{bpmn_namespace}}}process")
 
-        # Add pools and their lanes if they exist
-        if self.pools:
-            for pool in self.pools:
-                participant = ET.SubElement(definitions, f"{{{bpmn_namespace}}}participant")
-                participant.set("id", pool.pool_id)
-                participant.set("name", pool.name)
+        # Create a mapping of flow node IDs to their incoming and outgoing flows
+        incoming_flows = {node.flowNode_id: [] for node in self.flowNodes}
+        outgoing_flows = {node.flowNode_id: [] for node in self.flowNodes}
 
-                # Add a new process for each pool
-                process = ET.SubElement(definitions, f"{{{bpmn_namespace}}}process")
-                for lane in pool.lanes:
-                    lane_set = ET.SubElement(process, f"{{{bpmn_namespace}}}laneSet")
-                    lane_element = ET.SubElement(lane_set, f"{{{bpmn_namespace}}}lane")
-                    lane_element.set("id", lane.lane_id)
-                    for flow_node in lane.flowNodes:
-                        flow_node_ref = ET.SubElement(lane_element, f"{{{bpmn_namespace}}}flowNodeRef")
-                        flow_node_ref.text = flow_node.flowNode_id
+        for flow in self.flows:
+            outgoing_flows[flow.source.flowNode_id].append(flow.id)
+            incoming_flows[flow.target.flowNode_id].append(flow.id)
 
         # Add flow nodes
-        if self.flowNodes:
-            for flow_node in self.flowNodes:
-                node_element = ET.SubElement(process, f"{{{bpmn_namespace}}}{flow_node.type}")
-                node_element.set("id", flow_node.flowNode_id)
-                if flow_node.label:
-                    node_element.set("name", flow_node.label)
+        for flow_node in self.flowNodes:
+            node_element = ET.SubElement(process, f"{{{bpmn_namespace}}}{flow_node.type}")
+            node_element.set("id", flow_node.flowNode_id)
+            if flow_node.label:
+                node_element.set("name", flow_node.label)
 
-        # Add flows (sequence flows)
-        if self.flows:
-            for flow in self.flows:
-                flow_element = ET.SubElement(process, f"{{{bpmn_namespace}}}sequenceFlow")
-                flow_element.set("id", flow.id)
-                flow_element.set("sourceRef", flow.source.flowNode_id)
-                flow_element.set("targetRef", flow.target.flowNode_id)
-                if flow.label:
-                    flow_element.set("name", flow.label)
+            # Add outgoing flows
+            for outgoing in outgoing_flows[flow_node.flowNode_id]:
+                outgoing_element = ET.SubElement(node_element, f"{{{bpmn_namespace}}}outgoing")
+                outgoing_element.text = outgoing
+
+            # Add incoming flows
+            for incoming in incoming_flows[flow_node.flowNode_id]:
+                incoming_element = ET.SubElement(node_element, f"{{{bpmn_namespace}}}incoming")
+                incoming_element.text = incoming
+
+        # Add sequence flows
+        for flow in self.flows:
+            flow_element = ET.SubElement(process, f"{{{bpmn_namespace}}}sequenceFlow")
+            flow_element.set("id", flow.id)
+            flow_element.set("sourceRef", flow.source.flowNode_id)
+            flow_element.set("targetRef", flow.target.flowNode_id)
+            if flow.label:
+                flow_element.set("name", flow.label)
 
         return ET.ElementTree(definitions)
 
+    # def _add_elements_to_process(self, process, lanes=None):
+    #     """Helper to add flowNodes, flows, and lanes to a process."""
+    #     bpmn_namespace = "http://www.omg.org/spec/BPMN/20100524/MODEL"
+    #     # Add lanes
+    #     if lanes:
+    #         lane_set = ET.SubElement(process, f"{{{bpmn_namespace}}}laneSet")
+    #         for lane in lanes:
+    #             lane_elem = ET.SubElement(lane_set, f"{{{bpmn_namespace}}}lane", id=lane.lane_id)
+    #             for flow_node in lane.flowNodes:
+    #                 ET.SubElement(lane_elem, f"{{{bpmn_namespace}}}flowNodeRef").text = flow_node.flowNode_id
+        
+        # Add flow nodes
+        for flow_node in self.flowNodes:
+            node_elem = ET.SubElement(process, f"{{{bpmn_namespace}}}{flow_node.type}", 
+                                    id=flow_node.flowNode_id, name=flow_node.label)
+        
+        # Add sequence flows
+        for flow in self.flows:
+            flow_elem = ET.SubElement(process, f"{{{bpmn_namespace}}}sequenceFlow", 
+                                    id=flow.id, sourceRef=flow.source.flowNode_id, 
+                                    targetRef=flow.target.flowNode_id)
+            if flow.label:
+                flow_elem.set("name", flow.label)
 
     def print_process_state(self):
         # print(f"\n{message}")

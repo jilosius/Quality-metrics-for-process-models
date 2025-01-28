@@ -1,3 +1,4 @@
+from Levenshtein import ratio
 from similarity_metric.similarity_metric import SimilarityMetric
 from process.process import Process
 from difflib import SequenceMatcher
@@ -12,6 +13,9 @@ class F1Score(SimilarityMetric):
         super().__init__(reference_model, altered_model)
         self.label_similarity_threshold = label_similarity_threshold
 
+
+
+    
     def calculate_similarity(self, label1, label2, type1, type2):
         """Calculate syntactic/semantic similarity between labels."""
         # print(f"Calculating similarity between labels: '{label1}' and '{label2}'")

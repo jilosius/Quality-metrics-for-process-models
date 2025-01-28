@@ -21,7 +21,7 @@ class ModelAlteration:
 
     def apply_alteration(self, alteration_name: str, repetitions: int = 1):
         
-        if self.altered_model is None:
+        if self.altered_model is None or alteration_name == "no_alterations":
             self.altered_model = self.reference_model.clone()
 
         # module and class names

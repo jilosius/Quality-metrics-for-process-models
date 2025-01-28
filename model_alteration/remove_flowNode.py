@@ -9,7 +9,7 @@ class RemoveFlowNode:
     def __init__(self, node_id=None):
         """
         Optionally specify the node_id to remove.
-        If None, a random node (that is NOT a gateway) will be selected.
+        If None, a random node will be selected.
         """
         self.node_id = node_id
 
@@ -25,12 +25,8 @@ class RemoveFlowNode:
                 print(f"FlowNode with ID {self.node_id} not found. No changes made.")
                 return model
         else:
-            # Randomly select a non-gateway node
-            non_gateway_nodes = [
-                node for node in model.flowNodes 
-                if node.type not in ["exclusiveGateway", "parallelGateway", "inclusiveGateway"]
-            ]
-            target_node = random.choice(non_gateway_nodes) if non_gateway_nodes else None
+            # Randomly select any flow node
+            target_node = random.choice(model.flowNodes) if model.flowNodes else None
 
         if not target_node:
             print("No valid flow nodes available to remove.")

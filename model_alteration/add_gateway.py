@@ -2,8 +2,6 @@ from .model_alteration import ModelAlteration
 from process.process import Process
 from process.flowNode import FlowNode
 from process.flow import Flow
-
-
 import random
 
 GATEWAY_TYPE_MAPPING = {
@@ -39,15 +37,31 @@ class AddGateway:
         )
         model.flowNodes.append(gateway_node)
 
-        # Step 3: Randomly select source and target nodes
+        # Step 3: Ensure sufficient nodes for connections
         if len(model.flowNodes) < 2:
             print("Not enough nodes to add a gateway.")
             return model
 
-        source_node = random.choice(model.flowNodes)
-        target_node = random.choice([node for node in model.flowNodes if node != source_node])
+        # Step 4: Randomly select source and target nodes
+        # Exclude the EndEvent as a source (no outgoing flows to the new gateway)
+        potential_sources = [
+            node for node in model.flowNodes if node != gateway_node and node.type.lower() != "endevent"
+        ]
+        if not potential_sources:
+            print(f"No valid source nodes available for {gateway_label}.")
+            return model
+        source_node = random.choice(potential_sources)
 
-        # Step 4: Create new flows
+        # Exclude the StartEvent as a target (no incoming flows from the new gateway)
+        potential_targets = [
+            node for node in model.flowNodes if node != source_node and node != gateway_node and node.type.lower() != "startevent"
+        ]
+        if not potential_targets:
+            print(f"No valid target nodes available for {gateway_label}.")
+            return model
+        target_node = random.choice(potential_targets)
+
+        # Step 5: Create new flows
         ModelAlteration.flow_count += 1
         flow_to_gateway = Flow(
             flow_id=f"flow_{ModelAlteration.flow_count}",
@@ -67,7 +81,7 @@ class AddGateway:
         # Add the new flows to the model
         model.flows.extend([flow_to_gateway, flow_from_gateway])
 
-        # Debugging info
+        # Step 6: Debugging info
         if lane_id:
             print(f"Added {gateway_label} ({self.gateway_type}) in lane {lane_id} between {source_node.flowNode_id} and {target_node.flowNode_id}")
         else:
@@ -76,4 +90,3 @@ class AddGateway:
         print(f"New flows: {flow_to_gateway.label}, {flow_from_gateway.label}")
 
         return model
-

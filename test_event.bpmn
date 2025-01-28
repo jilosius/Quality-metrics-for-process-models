@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:zeebe="http://camunda.org/schema/zeebe/1.0" xmlns:modeler="http://camunda.org/schema/modeler/1.0" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Web Modeler" exporterVersion="e8c556f" modeler:executionPlatform="Camunda Cloud" modeler:executionPlatformVersion="8.6.0">
+  <bpmn:process id="Process_18n0fpf" name="test_event" isExecutable="true">
+    <bpmn:startEvent id="StartEvent_1">
+      <bpmn:outgoing>Flow_0icvedn</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:intermediateThrowEvent id="throw">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="test" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_0f0t1ez</bpmn:incoming>
+      <bpmn:outgoing>Flow_1cdppoz</bpmn:outgoing>
+    </bpmn:intermediateThrowEvent>
+    <bpmn:endEvent id="endEvent">
+      <bpmn:incoming>Flow_1cdppoz</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_0icvedn" sourceRef="StartEvent_1" targetRef="catch" />
+    <bpmn:intermediateCatchEvent id="catch">
+      <bpmn:incoming>Flow_0icvedn</bpmn:incoming>
+      <bpmn:outgoing>Flow_0f0t1ez</bpmn:outgoing>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:sequenceFlow id="Flow_0f0t1ez" sourceRef="catch" targetRef="throw" />
+    <bpmn:sequenceFlow id="Flow_1cdppoz" sourceRef="throw" targetRef="endEvent" />
+  </bpmn:process>
+  <bpmn:message id="Message_383uf91" name="Message_383uf91">
+    <bpmn:extensionElements>
+      <zeebe:subscription correlationKey="=test" />
+    </bpmn:extensionElements>
+  </bpmn:message>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_18n0fpf">
+      <bpmndi:BPMNShape id="_BPMNShape_StartEvent_2" bpmnElement="StartEvent_1">
+        <dc:Bounds x="152" y="82" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_0fo8wqs_di" bpmnElement="throw">
+        <dc:Bounds x="372" y="82" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_1gsg8ox_di" bpmnElement="endEvent">
+        <dc:Bounds x="482" y="82" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_0pfvvl6_di" bpmnElement="catch">
+        <dc:Bounds x="252" y="82" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_0icvedn_di" bpmnElement="Flow_0icvedn">
+        <di:waypoint x="188" y="100" />
+        <di:waypoint x="252" y="100" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0f0t1ez_di" bpmnElement="Flow_0f0t1ez">
+        <di:waypoint x="288" y="100" />
+        <di:waypoint x="372" y="100" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1cdppoz_di" bpmnElement="Flow_1cdppoz">
+        <di:waypoint x="408" y="100" />
+        <di:waypoint x="482" y="100" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

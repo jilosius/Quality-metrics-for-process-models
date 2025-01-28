@@ -1,3 +1,4 @@
+from Levenshtein import ratio
 from similarity_metric.similarity_metric import SimilarityMetric
 from process.process import Process
 from difflib import SequenceMatcher
@@ -30,6 +31,8 @@ class NodeStructuralBehavioralMetric(SimilarityMetric):
         self.print_graph_table(self.reference_graph, "Reference Graph")
         self.print_graph_table(self.altered_graph, "Altered Graph")
 
+   
+    
     def calculate(self):
         node_similarity_score = self.node_matching_similarity()
         structural_similarity_score = self.calculate_structural_similarity()
@@ -68,50 +71,89 @@ class NodeStructuralBehavioralMetric(SimilarityMetric):
         """
         matched_pairs = []
         for neighbor1 in neighbors1:
-            # print(f"\nProcessing Neighbor1: {neighbor1}, Label: {graph1.nodes[neighbor1].get('label', '')}, Type: {graph1.nodes[neighbor1].get('type', '')}")
+            print(f"\nProcessing Neighbor1: {neighbor1}, Label: {graph1.nodes[neighbor1].get('label', '')}, Type: {graph1.nodes[neighbor1].get('type', '')}")
             best_match = None
             best_similarity = 0
             for neighbor2 in neighbors2:
-                # print(f"  Comparing with Neighbor2: {neighbor2}, Label: {graph2.nodes[neighbor2].get('label', '')}, Type: {graph2.nodes[neighbor2].get('type', '')}")
+                print(f"  Comparing with Neighbor2: {neighbor2}, Label: {graph2.nodes[neighbor2].get('label', '')}, Type: {graph2.nodes[neighbor2].get('type', '')}")
 
                 syntactic_similarity = self.calculate_syntactic_similarity(
                     graph1.nodes[neighbor1].get("label", ""),
                     graph2.nodes[neighbor2].get("label", "")
                 )
-                # print(f"    Syntactic Similarity: {syntactic_similarity}")
+                print(f"    Syntactic Similarity: {syntactic_similarity}")
 
                 semantic_similarity = self.calculate_semantic_similarity(
                     graph1.nodes[neighbor1].get("label", ""),
                     graph2.nodes[neighbor2].get("label", "")
                 )
-                # print(f"    Semantic Similarity: {semantic_similarity}")
+                print(f"    Semantic Similarity: {semantic_similarity}")
 
                 label_similarity = max(syntactic_similarity, semantic_similarity)
-                # print(f"    Label Similarity (Max of Syntactic and Semantic): {label_similarity}")
+                print(f"    Label Similarity (Max of Syntactic and Semantic): {label_similarity}")
 
                 type_similarity = self.calculate_type_similarity(
                     graph1.nodes[neighbor1].get("type", ""),
                     graph2.nodes[neighbor2].get("type", "")
                 )
-                # print(f"    Type Similarity: {type_similarity}")
+                print(f"    Type Similarity: {type_similarity}")
 
                 similarity = (label_similarity + type_similarity + semantic_similarity) / 3
-                # print(f"    Combined Similarity: {similarity}")
+                print(f"    Combined Similarity: {similarity}")
 
                 if similarity > best_similarity:
-                    # print(f"      New Best Match Found: {neighbor2} with Similarity: {similarity}")
+                    print(f"      New Best Match Found: {neighbor2} with Similarity: {similarity}")
                     best_similarity = similarity
                     best_match = neighbor2
 
             if best_match is not None and best_similarity > 0:
-                # print(f"  Best Match for {neighbor1}: {best_match} with Similarity: {best_similarity}")
+                print(f"  Best Match for {neighbor1}: {best_match} with Similarity: {best_similarity}")
                 matched_pairs.append((neighbor1, best_match))
                 neighbors2.remove(best_match)
-                # print(f"  Neighbor2 {best_match} removed from further consideration.")
+                print(f"  Neighbor2 {best_match} removed from further consideration.")
 
-        # print(f"\nFinal Matched Pairs: {matched_pairs}")
+        print(f"\nFinal Matched Pairs: {matched_pairs}")
         return matched_pairs
 
+    def calculate_contextual_equivalence_mapping(self, neighbors1, neighbors2, graph1, graph2):
+        """
+        Calculate the optimal equivalence mapping for contextual similarity between two sets of neighbors using syntactic, semantic, and type similarities.
+        """
+        matched_pairs = []
+        for neighbor1 in neighbors1:
+            best_match = None
+            best_similarity = 0
+            for neighbor2 in neighbors2:
+
+                syntactic_similarity = self.calculate_syntactic_similarity(
+                    graph1.nodes[neighbor1].get("label", ""),
+                    graph2.nodes[neighbor2].get("label", "")
+                )
+
+                semantic_similarity = self.calculate_semantic_similarity(
+                    graph1.nodes[neighbor1].get("label", ""),
+                    graph2.nodes[neighbor2].get("label", "")
+                )
+
+                label_similarity = max(syntactic_similarity, semantic_similarity)
+
+                type_similarity = self.calculate_type_similarity(
+                    graph1.nodes[neighbor1].get("type", ""),
+                    graph2.nodes[neighbor2].get("type", "")
+                )
+
+                similarity = (label_similarity + type_similarity + semantic_similarity) / 3
+
+                if similarity > best_similarity:
+                    best_similarity = similarity
+                    best_match = neighbor2
+
+            if best_match is not None and best_similarity > 0:
+                matched_pairs.append((neighbor1, best_match))
+                neighbors2.remove(best_match)
+
+        return matched_pairs
+    
     def calculate_contextual_similarity(self, node1, graph1, node2, graph2):
         """
         Calculate contextual similarity between two nodes based on their neighbors.
@@ -135,10 +177,10 @@ class NodeStructuralBehavioralMetric(SimilarityMetric):
 
 
         # Calculate optimal equivalence mappings for input and output contexts
-        optimal_in_mapping = self.calculate_optimal_equivalence_mapping(
+        optimal_in_mapping = self.calculate_contextual_equivalence_mapping(
         incoming_neighbors1, incoming_neighbors2.copy(), graph1, graph2
         )
-        optimal_out_mapping = self.calculate_optimal_equivalence_mapping(
+        optimal_out_mapping = self.calculate_contextual_equivalence_mapping(
             outgoing_neighbors1, outgoing_neighbors2.copy(), graph1, graph2
         )
 
@@ -179,24 +221,31 @@ class NodeStructuralBehavioralMetric(SimilarityMetric):
         
         return contextual_similarity
 
-    def node_matching_similarity(self, threshold=0.5, ignore_types={"Gateway"}):
+    def node_matching_similarity(self, threshold=0.8, ignore_types=None):
         """
-        Compute node matching similarity between reference and altered graphs.
+        Compute node matching similarity between reference and altered graphs, including gateways.
         """
+        # Set default for ignore_types to an empty set, allowing all node types
+        if ignore_types is None:
+            ignore_types = set()
+
         total_similarity = 0
         matched_pairs = []
+        self.similarity_scores = {}  # Dictionary to store similarity scores for matched pairs
 
         for node1, attr1 in self.reference_graph.nodes(data=True):
-            if attr1.get("type", "").endswith("Gateway"):
+            # Do not ignore any types, including gateways
+            if attr1.get("type", "") in ignore_types:
                 continue
 
             best_match_score = 0
             best_match_node = None
 
             for node2, attr2 in self.altered_graph.nodes(data=True):
-                if not attr2.get("label", "") or attr2.get("type", "").endswith("Gateway"):
+                if attr2.get("type", "") in ignore_types:
                     continue
 
+                # Calculate similarities
                 syntactic_similarity = self.calculate_syntactic_similarity(attr1.get("label", ""), attr2.get("label", ""))
                 semantic_similarity = self.calculate_semantic_similarity(attr1.get("label", ""), attr2.get("label", ""))
                 label_similarity = max(syntactic_similarity, semantic_similarity)
@@ -208,13 +257,13 @@ class NodeStructuralBehavioralMetric(SimilarityMetric):
 
                 combined_similarity = (label_similarity + type_similarity + contextual_similarity) / 3
                 # Print details of similarities
-                # print(f"\nNode1: {node1}, Node2: {node2}")
-                # print(f"  Syntactic Similarity: {syntactic_similarity}")
-                # print(f"  Semantic Similarity: {semantic_similarity}")
-                # print(f"  Label Similarity: {label_similarity}")
-                # print(f"  Type Similarity: {type_similarity}")
-                # print(f"  Contextual Similarity: {contextual_similarity}")
-                # print(f"  Combined Similarity: {combined_similarity}")
+                print(f"\nNode1: {node1}, Node2: {node2}")
+                print(f"  Syntactic Similarity: {syntactic_similarity}")
+                print(f"  Semantic Similarity: {semantic_similarity}")
+                print(f"  Label Similarity: {label_similarity}")
+                print(f"  Type Similarity: {type_similarity}")
+                print(f"  Contextual Similarity: {contextual_similarity}")
+                print(f"  Combined Similarity: {combined_similarity}")
                 if combined_similarity > best_match_score:
                     best_match_score = combined_similarity
                     best_match_node = node2
@@ -222,6 +271,7 @@ class NodeStructuralBehavioralMetric(SimilarityMetric):
             if best_match_score >= threshold:
                 total_similarity += best_match_score
                 matched_pairs.append((node1, best_match_node))
+                self.similarity_scores[(node1, best_match_node)] = best_match_score  # Store similarity score
 
         valid_nodes_graph1 = [
             n for n, attr in self.reference_graph.nodes(data=True) if attr.get("type", "") not in ignore_types
@@ -233,7 +283,13 @@ class NodeStructuralBehavioralMetric(SimilarityMetric):
         total_valid_nodes = len(valid_nodes_graph1) + len(valid_nodes_graph2)
         similarity_score = (2 * total_similarity) / total_valid_nodes if total_valid_nodes > 0 else 0
 
+        # Class attributes
+        self.matched_pairs = matched_pairs
+
+        print(matched_pairs)
+
         return similarity_score
+
 
     def calculate_structural_similarity(self):
         """
@@ -254,10 +310,14 @@ class NodeStructuralBehavioralMetric(SimilarityMetric):
                         if pred != succ:
                             graph.add_edge(pred, succ)
                 graph.remove_node(gateway)
-                
 
         remove_gateways(reference_graph_copy)
         remove_gateways(altered_graph_copy)
+
+        # Check if either graph becomes empty after gateway removal
+        if len(reference_graph_copy.nodes()) == 0 or len(altered_graph_copy.nodes()) == 0:
+            print("One of the graphs is empty after gateway removal. Setting structural similarity to 0.")
+            return 0  # Default structural similarity
 
         # Track matched nodes in the altered graph to prevent duplicate matches
         matched_altered_nodes = set()
@@ -295,7 +355,6 @@ class NodeStructuralBehavioralMetric(SimilarityMetric):
 
         # Calculate nodes and edges deleted or inserted
         nodes_deleted_or_inserted = len(unmatched_reference_nodes) + len(unmatched_altered_nodes)
-        # Calculate inserted or deleted edges
         unmatched_edges = set()
 
         # Create node mapping dictionaries
@@ -307,7 +366,6 @@ class NodeStructuralBehavioralMetric(SimilarityMetric):
             mapped_source = node_mapping.get(source)
             mapped_target = node_mapping.get(target)
             if mapped_source is None or mapped_target is None or not altered_graph_copy.has_edge(mapped_source, mapped_target):
-                # Edge is unmatched
                 unmatched_edges.add((source, target))
 
         # Check edges in the altered graph
@@ -315,17 +373,16 @@ class NodeStructuralBehavioralMetric(SimilarityMetric):
             mapped_source = reverse_mapping.get(source)
             mapped_target = reverse_mapping.get(target)
             if mapped_source is None or mapped_target is None or not reference_graph_copy.has_edge(mapped_source, mapped_target):
-                # Edge is unmatched
                 unmatched_edges.add((mapped_source, mapped_target))
 
         # Total number of unmatched edges
         edges_deleted_or_inserted = len(unmatched_edges)
 
-
         # Calculate structural similarity
-        snv = nodes_deleted_or_inserted / (len(reference_graph_copy.nodes()) + len(altered_graph_copy.nodes()))
-        sev = edges_deleted_or_inserted / (len(reference_graph_copy.edges()) + len(altered_graph_copy.edges()))
-        sbv = 2 * total_substitution_cost / (len(reference_graph_copy.nodes()) + len(altered_graph_copy.nodes()) - nodes_deleted_or_inserted)
+        snv = nodes_deleted_or_inserted / max(1, len(reference_graph_copy.nodes()) + len(altered_graph_copy.nodes()))
+        sev = edges_deleted_or_inserted / max(1, len(reference_graph_copy.edges()) + len(altered_graph_copy.edges()))
+        sbv_denominator = len(reference_graph_copy.nodes()) + len(altered_graph_copy.nodes()) - nodes_deleted_or_inserted
+        sbv = 2 * total_substitution_cost / sbv_denominator if sbv_denominator > 0 else 0
         structural_similarity = 1 - ((snv + sev + sbv) / 3)
 
         return structural_similarity
@@ -378,9 +435,7 @@ class NodeStructuralBehavioralMetric(SimilarityMetric):
         altered_nodes = list(self.altered_graph.nodes())
         
         # Use calculate_optimal_equivalence_mapping to get mapped activities
-        optimal_mapping = self.calculate_optimal_equivalence_mapping(
-            reference_nodes, altered_nodes, self.reference_graph, self.altered_graph
-        )
+        optimal_mapping = self.matched_pairs
         self.mapping = {a1: a2 for a1, a2 in optimal_mapping}  # Save as a class attribute
         mapped_activities = set(optimal_mapping)  # Convert to a set for use in \Theta
         
@@ -393,7 +448,9 @@ class NodeStructuralBehavioralMetric(SimilarityMetric):
         mapped_altered_nodes = set(a2 for _, a2 in mapped_activities)
         
         unmapped_activities1 = set(reference_nodes) - mapped_reference_nodes
+        print(f"Unmapped ref graph: {unmapped_activities1}")
         unmapped_activities2 = set(altered_nodes) - mapped_altered_nodes
+        print(f"Unmapped alt graph: {unmapped_activities2}")
 
         # Step 3: Extract causal links
         look_back_links1 = {
@@ -403,8 +460,8 @@ class NodeStructuralBehavioralMetric(SimilarityMetric):
         }
         
 
-        # print("------")
-        # print("\nlook_back_links1: ", look_back_links1)
+        print("------")
+        print("\nlook_back_links1: ", look_back_links1)
 
         look_ahead_links1 = {
             (source, target)
@@ -412,7 +469,7 @@ class NodeStructuralBehavioralMetric(SimilarityMetric):
             for target in links["look_ahead"]
         }
 
-        # print("\nlook_ahead_links1: ", look_ahead_links1)
+        print("\nlook_ahead_links1: ", look_ahead_links1)
 
 
         look_back_links2 = {
@@ -421,7 +478,7 @@ class NodeStructuralBehavioralMetric(SimilarityMetric):
             for source in links["look_back"]
         }
 
-        # print("\nlook_back_links2: ", look_back_links2)
+        print("\nlook_back_links2: ", look_back_links2)
 
         look_ahead_links2 = {
             (source, target)
@@ -429,13 +486,13 @@ class NodeStructuralBehavioralMetric(SimilarityMetric):
             for target in links["look_ahead"]
         }
 
-        # print("\nlook_ahead_links2: ", look_ahead_links2)
-        # print("------")
+        print("\nlook_ahead_links2: ", look_ahead_links2)
+        print("------")
 
-        # print("\nIndex terms: ", mapped_activities.union(
-        #     unmapped_activities1, unmapped_activities2, look_back_links1, look_ahead_links1, look_back_links2, look_ahead_links2
-        # ))
-        # print("------")
+        print("\nIndex terms: ", mapped_activities.union(
+            unmapped_activities1, unmapped_activities2, look_back_links1, look_ahead_links1, look_back_links2, look_ahead_links2
+        ))
+        print("------")
 
         # Step 4: Combine all index terms
         return mapped_activities.union(
@@ -447,103 +504,61 @@ class NodeStructuralBehavioralMetric(SimilarityMetric):
         Compute the weight of an index term for a graph.
         """
         if isinstance(term, tuple) and len(term) == 2:  # Mapped activity or causal link
-            # Mapped activities
+
+            # Case 1: Mapped Activities
             if term in self.mapping.items():
                 node1, node2 = term
-                # print("------")
-                # print(f"[Mapped Activity] Term: {term}")
                 if node1 in graph.nodes and node2 in graph.nodes:  # Ensure nodes exist
-                    attr1 = graph.nodes[node1]
-                    attr2 = graph.nodes[node2]
-                    
-                    # Compute various similarities
-                    syntactic_similarity = self.calculate_syntactic_similarity(attr1.get("label", ""), attr2.get("label", ""))
-                    semantic_similarity = self.calculate_semantic_similarity(attr1.get("label", ""), attr2.get("label", ""))
-                    label_similarity = max(syntactic_similarity, semantic_similarity)
-                    type_similarity = self.calculate_type_similarity(attr1.get("type", ""), attr2.get("type", ""))
-                    # contextual_similarity = self.calculate_contextual_similarity(node1, graph, node2, graph)
-                    
-                    # Combine similarities
-                    combined_similarity = (label_similarity + type_similarity ) / 2
-                    
-                    # print(f"  node1: {node1}, label1: {attr1.get('label', '')}")
-                    # print(f"  node2: {node2}, label2: {attr2.get('label', '')}")
-                    # print(f"  Label Similarity: {label_similarity}")
-                    # print(f"  Type Similarity: {type_similarity}")
-                    # print(f"  Contextual Similarity: {contextual_similarity}")
-                    # print(f"  Combined Similarity: {combined_similarity}")
-                    # print("------")
-                    
-                    return combined_similarity
+                    # Retrieve precomputed similarity score
+                    if (node1, node2) in self.similarity_scores:
+                        return self.similarity_scores[(node1, node2)]
+                    else:
+                        return 0  # If no similarity score is found, return 0
 
-            # Causal links
+            # Case 2: Look-Back Causal Links
             for target, links in causal_footprint.items():
-                if term in {(source, target) for source in links["look_back"]} or term in {(target, source) for source in links["look_back"]}:
-                    # print("------")
-                    # print(f"[Causal Link - Look Back] Term: {term}")
+                if term in {(source, target) for source in links["look_back"]}:
                     source, target_node = term
                     if source in graph.nodes and target_node in graph.nodes:  # Ensure nodes exist
                         attr_source = graph.nodes[source]
                         attr_target = graph.nodes[target_node]
-                        
-                        # Compute various similarities
+
+                        # Compute similarities
                         syntactic_similarity = self.calculate_syntactic_similarity(attr_source.get("label", ""), attr_target.get("label", ""))
                         semantic_similarity = self.calculate_semantic_similarity(attr_source.get("label", ""), attr_target.get("label", ""))
                         label_similarity = max(syntactic_similarity, semantic_similarity)
                         type_similarity = self.calculate_type_similarity(attr_source.get("type", ""), attr_target.get("type", ""))
-                        # contextual_similarity = self.calculate_contextual_similarity(source, graph, target_node, graph)
                         
+                        length_lookback = len(links["look_back"])
+                        print(f"length of look back: {length_lookback}")
                         # Combine similarities
-                        combined_similarity = (label_similarity + type_similarity ) / 2
-                        
-                        # print(f"  source: {source}, label_source: {attr_source.get('label', '')}")
-                        # print(f"  target: {target_node}, label_target: {attr_target.get('label', '')}")
-                        # print(f"  Syntactic Similarity: {syntactic_similarity}")
-                        # print(f"  Semantic Similarity: {semantic_similarity}")
-                        # print(f"  Type Similarity: {type_similarity}")
-                        # print(f"  Contextual Similarity: {contextual_similarity}")
-                        # print(f"  Combined Similarity: {combined_similarity}")
-                        # print("------")
+                        combined_similarity = (label_similarity + type_similarity) / (2 ** len(links["look_back"]))
 
-                        
                         return combined_similarity
 
+            # Case 3: Look-Ahead Causal Links
                 if term in {(target, successor) for successor in links["look_ahead"]}:
-                    # print("\n", len(links["look_ahead"]))
-                    # print("------")
-                    # print(f"\n[Causal Link - Look Ahead] Term: {term}")
                     target_node, successor = term
                     if target_node in graph.nodes and successor in graph.nodes:  # Ensure nodes exist
                         attr_target = graph.nodes[target_node]
                         attr_successor = graph.nodes[successor]
-                        
+
                         # Compute similarities
                         syntactic_similarity = self.calculate_syntactic_similarity(attr_target.get("label", ""), attr_successor.get("label", ""))
                         semantic_similarity = self.calculate_semantic_similarity(attr_target.get("label", ""), attr_successor.get("label", ""))
                         label_similarity = max(syntactic_similarity, semantic_similarity)
                         type_similarity = self.calculate_type_similarity(attr_target.get("type", ""), attr_successor.get("type", ""))
-                        # contextual_similarity = self.calculate_contextual_similarity(target_node, graph, successor, graph)
-                        
-                        #-----------------
-                        #keep contextual or keep? We need to understand if it does the same thing first.
-                        #-----------------
 
+                        length_lookahead = len(links["look_ahead"])
+                        print(f"length of look ahead: {length_lookahead}")
+                        # Combine similarities
+                        combined_similarity = (label_similarity + type_similarity) / (2 ** len(links["look_ahead"]))
 
-
-                        # Combine similarities with weighting
-                        combined_similarity = (label_similarity + type_similarity ) / 2
-                        
-                        # print(f"  target: {target_node}, label_target: {attr_target.get('label', '')}")
-                        # print(f"  successor: {successor}, label_successor: {attr_successor.get('label', '')}")
-                        # print(f"  Syntactic Similarity: {syntactic_similarity}")
-                        # print(f"  Semantic Similarity: {semantic_similarity}")
-                        # print(f"  Type Similarity: {type_similarity}")
-                        # # print(f"  Contextual Similarity: {contextual_similarity}")
-                        # print(f"  Combined Similarity: {combined_similarity}")
-                        # print("------")
-                        
                         return combined_similarity
-        return 0  # Unmapped activities or links with no weight
+
+        # Case 4: Default to 0 if no conditions are satisfied
+        return 0
+
 
     def generate_index_vectors(self, index_terms, causal_footprint1, causal_footprint2):
         """
@@ -562,7 +577,7 @@ class NodeStructuralBehavioralMetric(SimilarityMetric):
             vector2.append(weight2)
 
             # # Print the term and its corresponding weights
-            # print(f"Index: {i:<3} Term: {str(term):<40} Weight1: {weight1:<10} Weight2: {weight2:<10}")
+            print(f"Index: {i:<3} Term: {str(term):<40} Weight1: {weight1:<10} Weight2: {weight2:<10}")
 
 
         return np.array(vector1), np.array(vector2)
@@ -572,13 +587,13 @@ class NodeStructuralBehavioralMetric(SimilarityMetric):
         Calculate cosine similarity between two vectors.
         """
         
-        # print("\nComparison of Vectors:")
-        # print(f"{'Index':<10} {'Vector1':<20} {'Vector2':<20}")
-        # print("-" * 50)
-        # for i, (v1, v2) in enumerate(zip(vector1, vector2)):
-        #     print(f"{i:<10} {v1:<20} {v2:<20}")
+        print("\nComparison of Vectors:")
+        print(f"{'Index':<10} {'Vector1':<20} {'Vector2':<20}")
+        print("-" * 50)
+        for i, (v1, v2) in enumerate(zip(vector1, vector2)):
+            print(f"{i:<10} {v1:<20} {v2:<20}")
         
-        # print("\n-------")
+        print("\n-------")
 
 
         dot_product = np.dot(vector1, vector2)
@@ -597,6 +612,10 @@ class NodeStructuralBehavioralMetric(SimilarityMetric):
         # Step 1: Generate causal footprints
         causal_footprint1 = self.generate_causal_footprint(self.reference_graph)
         causal_footprint2 = self.generate_causal_footprint(self.altered_graph)
+
+        self.print_causal_footprint(causal_footprint1)
+        print("----------------")
+        self.print_causal_footprint(causal_footprint2)
 
         # Step 2: Generate index terms (this calculates and saves the mapping)
         index_terms = self.generate_index_terms(causal_footprint1, causal_footprint2)

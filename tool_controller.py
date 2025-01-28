@@ -11,7 +11,7 @@ from similarity_metric.compliance_metric import ComplianceMetric
 class ToolController:
     
     def __init__(self):
-        self.metrics = ["NodeStructuralBehavioralMetric", "F1Score"]  # List of available metrics 
+        self.metrics = ["NodeStructuralBehavioralMetric", "F1Score","ComplianceMetric"]  # List of available metrics  
         self.reference_model = None
         self.altered_model = None
 
@@ -29,80 +29,26 @@ class ToolController:
         # Perform alterations
         print("\nPerforming alterations...")
         model_alteration = ModelAlteration(self.reference_model)
-
-        # Applying alterations
-        for alteration, repetitions in alterations:
-            print(f"Applying alteration: {alteration} {repetitions} time(s)...")
-            model_alteration.apply_alteration(alteration, repetitions)
-
-        self.altered_model = model_alteration.altered_model
-
-        # Generate granularity mapping using process objects
-        # print("\nGenerating granularity mapping using process objects...")
-        # compliance_metric = ComplianceMetric(self.reference_model, self.altered_model)
-        # granularity_mapping = compliance_metric.match_nodes(
-        #     self.reference_model.flowNodes,  # Process object nodes
-        #     self.altered_model.flowNodes
-        # )
-
-        # Formatting the output for better readability
-        # formatted_output = "\n".join(f"Reference: {pair[0]}\nAltered: {pair[1]}\n" for pair in granularity_mapping)   
-        # print(formatted_output)
-
-        # Convert the reference model to BPMN and save to a temporary file
-        # print("\nConverting the reference BPMN model to Petri net...")
-
-        # reference_petri_net, reference_initial_marking, reference_final_marking = compliance_metric.convert_to_petri_net(file_path)
-
-        # compliance_metric.visualize_petri_net(reference_petri_net,reference_initial_marking,reference_final_marking)
-
-        # print("\nReference Model Petri net:")
-        # self.print_petri_net_details(reference_petri_net, reference_initial_marking, reference_final_marking)
-
-        # Convert the altered model to BPMN and save to the output path
-        # altered_bpmn_tree = self.altered_model.to_bpmn()
-        # IOHandler.write_bpmn(altered_bpmn_tree, output_path)
-
-        # altered_petri_net, altered_initial_marking, altered_final_marking = compliance_metric.convert_to_petri_net(output_path)
-
-        # print("\nAltered Model Petri net:")
-        # self.print_petri_net_details(altered_petri_net, altered_initial_marking, altered_final_marking)
-
-
-        # print("Initial Marking:", reference_initial_marking)
-        # print("Initial Marking Details:")
-        # for place, tokens in reference_initial_marking.items():
-        #     print(f"Place: {place}, Tokens: {tokens}")
-
-        # print("Final Marking:", reference_final_marking)
-
-
-        # firing_seq_ref = compliance_metric.generate_all_firing_sequences(reference_petri_net, reference_initial_marking, reference_final_marking)
-        # firing_seq_alt = compliance_metric.generate_all_firing_sequences(altered_petri_net, altered_initial_marking, altered_final_marking)
         
-        # print(firing_seq_ref)
-        # print("\n------------\n")
-        # print(firing_seq_alt)
+        if not alterations:
+            print("No alterations specified. Cloning reference model as altered model.")
+            self.altered_model = self.reference_model.clone()
+        else:
+            # Applying alterations
+            for alteration, repetitions in alterations:
+                print(f"Applying alteration: {alteration} {repetitions} time(s)...")
+                model_alteration.apply_alteration(alteration, repetitions)
+            self.altered_model = model_alteration.altered_model
 
-        # for transition in reference_petri_net.transitions:
-        #     print(f"Transition: {transition}")
-        #     for arc in transition.in_arcs:
-        #         print(f"  Input Arc: {arc.source} -> {arc.target}, Weight: {arc.weight}")
-        #     for arc in transition.out_arcs:
-        #         print(f"  Output Arc: {arc.source} -> {arc.target}, Weight: {arc.weight}")
+ 
 
 
-        # print("\nMatches:")
-        # for ref_transition, alt_transition in matches:
-        #     ref_name = ref_transition.label if ref_transition.label else ref_transition.name
-        #     alt_name = alt_transition.label if alt_transition.label else alt_transition.name
-        #     print(f"Reference Transition: {ref_name} matched with Altered Transition: {alt_name}")
 
 
         # Calculating similarity metrics
         results_summary = []
         for metric_name in self.metrics:
-            metric = SimilarityMetric.get_metric(metric_name, self.reference_model, self.altered_model)
+            metric = SimilarityMetric.get_metric(metric_name, self.reference_model, self.altered_model, file_path, output_path)
             print("\n================================================================================")
             print(f"\nCalculating metric: {metric_name}...")
             results = metric.calculate()
@@ -195,24 +141,30 @@ if __name__ == "__main__":
     parser.add_argument("-remove_flow", type=int, nargs="?", const=1, help="Remove a flow from the process model.")
     parser.add_argument("-remove_gateway", type=int, nargs="?", const=1, help="Remove a gateway from the process model.")
     parser.add_argument("-change_label", type=int, nargs="?", const=1, help="Change the label of a node in the process model.")
+    parser.add_argument("-remove_flowNode", type=int, nargs="?", const=1, help="Remove a flowNode from the process model.")
+    parser.add_argument("-no_alterations", action="store_true", help="Run the tool without applying any alterations.")
+
     args = parser.parse_args()
 
     # Collect alterations and their repetitions
     alterations = []
-    if args.add_activity:
-        alterations.append(("add_activity", args.add_activity))
-    if args.add_flow:
-        alterations.append(("add_flow", args.add_flow))
-    if args.add_gateway:
-        alterations.append(("add_gateway", args.add_gateway))
-    if args.remove_activity:
-        alterations.append(("remove_activity", args.remove_activity))
-    if args.remove_flow:
-        alterations.append(("remove_flow", args.remove_flow))
-    if args.remove_gateway:
-        alterations.append(("remove_gateway", args.remove_gateway))
-    if args.change_label:
-        alterations.append(("change_label", args.change_label))
+    if not args.no_alterations:  # Only collect alterations if the flag is not set
+        if args.add_activity:
+            alterations.append(("add_activity", args.add_activity))
+        if args.add_flow:
+            alterations.append(("add_flow", args.add_flow))
+        if args.add_gateway:
+            alterations.append(("add_gateway", args.add_gateway))
+        if args.remove_activity:
+            alterations.append(("remove_activity", args.remove_activity))
+        if args.remove_flow:
+            alterations.append(("remove_flow", args.remove_flow))
+        if args.remove_gateway:
+            alterations.append(("remove_gateway", args.remove_gateway))
+        if args.change_label:
+            alterations.append(("change_label", args.change_label))
+        if args.remove_flowNode:
+            alterations.append(("remove_flow", args.remove_flowNode))
 
     # Execute the tool
     start_time = time.time()
@@ -221,5 +173,3 @@ if __name__ == "__main__":
     end_time = time.time()
 
     print(f"Script completed in {end_time - start_time:.2f} seconds.")
-
-

@@ -14,6 +14,28 @@
     </bpmn:task>
     <bpmn:sequenceFlow id="Flow_0a9na01" sourceRef="test_activity" targetRef="EndEvent" />
   </bpmn:process>
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="template-microservice-tutorial-18us19m">
       <bpmndi:BPMNShape id="_BPMNShape_StartEvent_2" bpmnElement="StartEvent">
