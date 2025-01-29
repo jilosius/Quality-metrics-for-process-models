@@ -12,28 +12,26 @@ GATEWAY_TYPE_MAPPING = {
 
 class AddGateway:
     def __init__(self):
-        """
-        Initialize the AddGateway class.
-        No parameters needed as gateway type and connections are chosen randomly.
-        """
-        self.gateway_type = random.choice(list(GATEWAY_TYPE_MAPPING.values()))
+        
+        pass  
 
     def apply(self, model: Process) -> Process:
+        # Select a random gateway type at EACH application
+        gateway_type = random.choice(list(GATEWAY_TYPE_MAPPING.values()))
+        print(f"DEBUG: Selected gateway type -> {gateway_type}")  # Debugging print
+
         # Step 1: Randomly assign a lane ID
-        if model.lanes:  # Ensure there are lanes available
-            lane_id = random.choice(model.lanes).lane_id
-        else:
-            lane_id = None  # Assign None if no lanes are defined
+        lane_id = random.choice(model.lanes).lane_id if model.lanes else None
 
         # Step 2: Create a new gateway node
         ModelAlteration.flowNode_count += 1
         gateway_id = f"gateway_{ModelAlteration.flowNode_count}"
-        gateway_label = f"{self.gateway_type} Gateway {ModelAlteration.flowNode_count}"
+        gateway_label = f"{gateway_type} Gateway {ModelAlteration.flowNode_count}"
         gateway_node = FlowNode(
             flowNode_id=gateway_id,
             label=gateway_label,
-            flowNode_type=self.gateway_type,
-            lane_id=lane_id  # Assign the randomly selected lane ID
+            flowNode_type=gateway_type,
+            lane_id=lane_id
         )
         model.flowNodes.append(gateway_node)
 
@@ -43,7 +41,6 @@ class AddGateway:
             return model
 
         # Step 4: Randomly select source and target nodes
-        # Exclude the EndEvent as a source (no outgoing flows to the new gateway)
         potential_sources = [
             node for node in model.flowNodes if node != gateway_node and node.type.lower() != "endevent"
         ]
@@ -52,7 +49,6 @@ class AddGateway:
             return model
         source_node = random.choice(potential_sources)
 
-        # Exclude the StartEvent as a target (no incoming flows from the new gateway)
         potential_targets = [
             node for node in model.flowNodes if node != source_node and node != gateway_node and node.type.lower() != "startevent"
         ]
@@ -82,11 +78,8 @@ class AddGateway:
         model.flows.extend([flow_to_gateway, flow_from_gateway])
 
         # Step 6: Debugging info
-        if lane_id:
-            print(f"Added {gateway_label} ({self.gateway_type}) in lane {lane_id} between {source_node.flowNode_id} and {target_node.flowNode_id}")
-        else:
-            print(f"Added {gateway_label} ({self.gateway_type}) with no lane between {source_node.flowNode_id} and {target_node.flowNode_id}")
-
+        lane_info = f" in lane {lane_id}" if lane_id else " with no lane"
+        print(f"Added {gateway_label} ({gateway_type}){lane_info} between {source_node.flowNode_id} and {target_node.flowNode_id}")
         print(f"New flows: {flow_to_gateway.label}, {flow_from_gateway.label}")
 
         return model

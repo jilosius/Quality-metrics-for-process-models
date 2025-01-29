@@ -19,7 +19,7 @@ class Parameters(Enum):
 
 
 class ComplianceMetric(SimilarityMetric):
-    def __init__(self, reference_model=None, altered_model=None, file_path=None, output_path=None, label_similarity_threshold=0.8):
+    def __init__(self, reference_model=None, altered_model=None, file_path=None, output_path=None, label_similarity_threshold=0.5):
         super().__init__(reference_model, altered_model)
         self.reference_model = reference_model
         self.altered_model = altered_model
@@ -177,60 +177,65 @@ class ComplianceMetric(SimilarityMetric):
         return True
 
     def generate_all_firing_sequences(self, net: PetriNet, initial_marking: Marking, final_marking: Marking, unroll_factor=2) -> List[List[PetriNet.Transition]]:
-        """
-        Generates all firing sequences for a Petri net from the initial marking to the final marking,
-        ensuring start and end events are visited exactly once and allowing limited exploration of cycles.
-        """
-        all_sequences = []
+            """
+            Generates all firing sequences for a Petri net from the initial marking to the final marking,
+            ensuring start and end events are visited exactly once and allowing limited exploration of cycles.
+            """
+            all_sequences = []
 
-        # Identify start and end transitions (safely handle None labels)
-        start_transitions = [t for t in net.transitions if t.label and (t.label.lower() == "start" or "startevent" in t.label.lower())]
-        end_transitions = [t for t in net.transitions if t.label and (t.label.lower() == "end" or "endevent" in t.label.lower())]
+            # Identify start and end transitions (safely handle None labels)
+            start_transitions = [t for t in net.transitions if t.label and (t.label.lower() == "start" or "startevent" in t.label.lower())]
+            end_transitions = [t for t in net.transitions if t.label and (t.label.lower() == "end" or "endevent" in t.label.lower())]
 
-        def normalize_marking(marking):
-            return tuple(sorted((getattr(place, 'name', str(place)), tokens) for place, tokens in marking.items() if tokens > 0))
+            def normalize_marking(marking):
+                return tuple(sorted((getattr(place, 'name', str(place)), tokens) for place, tokens in marking.items() if tokens > 0))
 
-        def dfs(marking, current_sequence, visit_count, start_visit_count, end_visit_count):
-            normalized_marking = normalize_marking(marking)
-            normalized_final_marking = normalize_marking(final_marking)
+            def dfs(marking, current_sequence, visit_count, start_visit_count, end_visit_count):
+                normalized_marking = normalize_marking(marking)
+                normalized_final_marking = normalize_marking(final_marking)
 
-            # Stop recursion if we reached the final marking
-            if normalized_marking == normalized_final_marking:
-                all_sequences.append(current_sequence[:])
-                return
+                # Stop recursion if we reached the final marking
+                if normalized_marking == normalized_final_marking:
+                    all_sequences.append(current_sequence[:])
+                    return
 
-            # Check visit count for this marking
-            if visit_count.get(normalized_marking, 0) >= unroll_factor:
-                return
-            visit_count[normalized_marking] = visit_count.get(normalized_marking, 0) + 1
+                # Check visit count for this marking
+                if visit_count.get(normalized_marking, 0) >= unroll_factor:
+                    return
+                visit_count[normalized_marking] = visit_count.get(normalized_marking, 0) + 1
 
-            # Count visits to start and end transitions
-            last_transition = current_sequence[-1] if current_sequence else None
-            if last_transition in start_transitions:
-                start_visit_count += 1
-            if last_transition in end_transitions:
-                end_visit_count += 1
+                # Count visits to start and end transitions
+                last_transition = current_sequence[-1] if current_sequence else None
+                if last_transition in start_transitions:
+                    start_visit_count += 1
+                if last_transition in end_transitions:
+                    end_visit_count += 1
 
-            # Exclude sequences that revisit start or end transitions
-            if start_visit_count > 1 or end_visit_count > 1:
-                return
+                # Exclude sequences that revisit start or end transitions
+                if start_visit_count > 1 or end_visit_count > 1:
+                    return
 
-            # Get all enabled transitions
-            enabled_transitions = [
-                t for t in net.transitions if self.is_transition_enabled(t, marking)
-            ]
+                # Get all enabled transitions
+                enabled_transitions = [
+                    t for t in net.transitions if self.is_transition_enabled(t, marking)
+                ]
 
-            for transition in enabled_transitions:
-                # Fire the transition to get the new marking
-                new_marking = self.fire_transition(transition, marking)
-                # Add the transition to the current sequence and recurse
-                current_sequence.append(transition)
-                dfs(new_marking, current_sequence, visit_count.copy(), start_visit_count, end_visit_count)
-                # Backtrack
-                current_sequence.pop()
+                for transition in enabled_transitions:
+                    # Fire the transition to get the new marking
+                    new_marking = self.fire_transition(transition, marking)
+                    # Add the transition to the current sequence and recurse
+                    current_sequence.append(transition)
+                    dfs(new_marking, current_sequence, visit_count.copy(), start_visit_count, end_visit_count)
+                    # Backtrack
+                    current_sequence.pop()
 
-        dfs(initial_marking, [], {}, 0, 0)
-        return all_sequences
+            dfs(initial_marking, [], {}, 0, 0)
+            return all_sequences
+
+
+
+
+
 
     def calculate_lcs(self, seq1, seq2):
         """

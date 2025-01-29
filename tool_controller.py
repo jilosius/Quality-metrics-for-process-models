@@ -11,7 +11,7 @@ from similarity_metric.compliance_metric import ComplianceMetric
 class ToolController:
     
     def __init__(self):
-        self.metrics = ["NodeStructuralBehavioralMetric", "F1Score","ComplianceMetric"]  # List of available metrics  
+        self.metrics = ["ComplianceMetric"]  # List of available metrics  "NodeStructuralBehavioralMetric", "F1Score",
         self.reference_model = None
         self.altered_model = None
 

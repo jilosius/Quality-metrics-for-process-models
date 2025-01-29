@@ -2,6 +2,8 @@
 from difflib import SequenceMatcher
 
 from Levenshtein import ratio
+import multiprocessing
+from multiprocessing import Pool
 
 class TestSim:
     def __init__(self):
@@ -24,3 +26,5 @@ if __name__ == "__main__":
     print(test.calculate_syntactic_similarity("Prepare chicken", "Prepare chicker"))
     print(test.calculate_syntactic_similarity("Malek", "Saif"))
     print(test.calculate_syntactic_similarity("Event_1u56gjw", "Gateway_0ve5rnc"))
+
+    print(multiprocessing.cpu_count())

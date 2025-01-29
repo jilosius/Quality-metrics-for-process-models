@@ -221,7 +221,7 @@ class NodeStructuralBehavioralMetric(SimilarityMetric):
         
         return contextual_similarity
 
-    def node_matching_similarity(self, threshold=0.8, ignore_types=None):
+    def node_matching_similarity(self, threshold=0.5, ignore_types=None):
         """
         Compute node matching similarity between reference and altered graphs, including gateways.
         """

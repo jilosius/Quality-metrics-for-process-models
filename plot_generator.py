@@ -87,29 +87,29 @@ class PlotGenerator:
 
 if __name__ == "__main__":
     # Example usage
-    plot_generator = PlotGenerator("test_remove_gateway_new.csv")
+    plot_generator = PlotGenerator("test_add_activity_new.csv")
     plot_generator.load_data()
     plot_generator.generate_lineplot(x_column="Alteration Count",
                                     y_columns=["Node Similarity", "Structural Similarity", "Behavioral Similarity","F1-Score", "Compliance Degree", "Compliance Maturity"],
                                     hue="Alteration Type", 
-                                    title="Metrics vs Alteration Count (Remove_gateway)",
+                                    title="Metrics vs Alteration Count (Add_activity)",
                                     output="metrics_vs_remove_gateway_lineplt_new.png")
     
     plot_generator.generate_lineplot(x_column="Alteration Count", 
                                      y_columns=["Compliance Degree", "Compliance Maturity"],
                                      hue="Alteration Type", 
-                                     title="Compliance Metrics vs Alteration Count (Remove_gateway)",
+                                     title="Compliance Metrics vs Alteration Count (Add_activity)",
                                      output="compliance_remove_gateway_lineplt.png")
 
     plot_generator.generate_regplot(x_column="Alteration Count", 
                                      y_columns=["Compliance Degree", "Compliance Maturity"],
-                                     title="Compliance Metrics vs Alteration Count (Remove_gateway)",
-                                     output="compliance_remove_gateway_regplt.png")
+                                     title="Compliance Metrics vs Alteration Count (Add_activity)",
+                                     output="compliance_add_activity_regplt.png")
 
     plot_generator.generate_regplot(x_column="Alteration Count", 
                                      y_columns=["Behavioral Similarity", "F1-Score", "Compliance Degree", "Compliance Maturity"],
-                                     title="Metrics vs Alteration Count (Remove_gateway)",
-                                     output="metrics_vs_remove_gateway_regplt_new.png")                                 
+                                     title="Metrics vs Alteration Count (Add_activity)",
+                                     output="metrics_vs_add_activity_regplt_new.png")                                 
     
 
     # plot_generator.generate_regplot(x_column="Alteration Count", 
