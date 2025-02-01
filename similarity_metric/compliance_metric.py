@@ -19,7 +19,7 @@ class Parameters(Enum):
 
 
 class ComplianceMetric(SimilarityMetric):
-    def __init__(self, reference_model=None, altered_model=None, file_path=None, output_path=None, label_similarity_threshold=0.5):
+    def __init__(self, reference_model=None, altered_model=None, file_path=None, output_path=None, label_similarity_threshold=1):
         super().__init__(reference_model, altered_model)
         self.reference_model = reference_model
         self.altered_model = altered_model
@@ -39,21 +39,21 @@ class ComplianceMetric(SimilarityMetric):
         """
         # Load the BPMN model
         bpmn_graph = pm4py.read_bpmn(bpmn_path)
-        # pm4py.view_bpmn(bpmn_graph)
+        pm4py.view_bpmn(bpmn_graph)
     
         # Convert BPMN to Petri net
         net, im, fm = self.apply(bpmn_graph)
 
         # # Visualize the Petri net
-        # try:
-        #     from pm4py.visualization.petri_net import visualizer as pn_visualizer
-        #     print("Visualizing the Petri net...")
-        #     gviz = pn_visualizer.apply(net, im, fm)
-        #     pn_visualizer.view(gviz)  # Opens in the default viewer
-        # except ImportError:
-        #     print("Petri net visualization skipped (missing pm4py visualization libraries).")
-        # except Exception as e:
-        #     print(f"An error occurred during visualization: {e}")
+        try:
+            from pm4py.visualization.petri_net import visualizer as pn_visualizer
+            print("Visualizing the Petri net...")
+            gviz = pn_visualizer.apply(net, im, fm)
+            pn_visualizer.view(gviz)  # Opens in the default viewer
+        except ImportError:
+            print("Petri net visualization skipped (missing pm4py visualization libraries).")
+        except Exception as e:
+            print(f"An error occurred during visualization: {e}")
 
         return net, im, fm
 

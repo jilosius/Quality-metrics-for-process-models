@@ -9,7 +9,7 @@ from similarity_metric.similarity_metric import SimilarityMetric
 
 class F1Score(SimilarityMetric):
 
-    def __init__(self, reference_model, altered_model, label_similarity_threshold=0.5):
+    def __init__(self, reference_model, altered_model, label_similarity_threshold=1):
         super().__init__(reference_model, altered_model)
         self.label_similarity_threshold = label_similarity_threshold
 

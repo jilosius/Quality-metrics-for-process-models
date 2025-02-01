@@ -63,23 +63,20 @@ class Experiment:
             print(f"Applying {num_alterations} {self.alteration_type}(s)...")
 
             for repetition in range(25):  # Perform similarity calculation 25 times for each alteration count
-                print(f"Iteration number: {repetition}")
+                print(f"Iteration number: {repetition + 1}")
 
                 # Perform alteration
                 model_alteration = ModelAlteration(reference_model)
                 model_alteration.apply_alteration(self.alteration_type, num_alterations)
 
-                
                 # Calculate the similarity metrics
                 altered_model = model_alteration.altered_model
                 node_structural_scores = SimilarityMetric.get_metric(metric_names[0], reference_model, altered_model).calculate()
                 f1_scores = SimilarityMetric.get_metric(metric_names[1], reference_model, altered_model).calculate()
                 compliance_scores = SimilarityMetric.get_metric(metric_names[2], reference_model, altered_model, file_path, "output_test.bpmn").calculate()
 
-
-                    
                 # Store the results
-                self.results.append((
+                result_entry = (
                     num_alterations,
                     repetition + 1,
                     self.alteration_type,
@@ -91,10 +88,21 @@ class Experiment:
                     f1_scores.get("F1 Score", 0),
                     compliance_scores.get("compliance_degree", 0),
                     compliance_scores.get("compliance_maturity", 0)
-                ))
+                )
+
+                self.results.append(result_entry)
+
+                # Print formatted results to the log
+                print(f"Results for alteration {num_alterations}, repetition {repetition + 1}:")
+                print(f"Node Similarity: {result_entry[3]:.6f}, Structural Similarity: {result_entry[4]:.6f}, "
+                    f"Behavioral Similarity: {result_entry[5]:.6f}")
+                print(f"Precision: {result_entry[6]:.6f}, Recall: {result_entry[7]:.6f}, F1-Score: {result_entry[8]:.6f}")
+                print(f"Compliance Degree: {result_entry[9]:.6f}, Compliance Maturity: {result_entry[10]:.6f}\n")
 
             # Increment the number of alterations
             num_alterations += 1
+
+
 
         # Save results to CSV
         self.save_results(output_csv)
@@ -126,13 +134,14 @@ if __name__ == "__main__":
     parser.add_argument("alteration_type", type=str, help="Type of alteration to apply (e.g., change_label).")
     parser.add_argument("max_alterations", type=int, help="Maximum number of alterations to perform.")
     parser.add_argument("output_csv", type=str, help="File to save the experiment results.")
+    parser.add_argument("log_txt", type=str, help="File to save execution log.")
 
     args = parser.parse_args()
 
     start_time = time.time()
     experiment = Experiment(args.alteration_type, args.max_alterations)
 
-    output_log = "log_remove_flowNode_low_thr.txt"
+    output_log = args.log_txt
 
     # Redirect stdout and stderr to log file
     with open(output_log, "w") as log_file:

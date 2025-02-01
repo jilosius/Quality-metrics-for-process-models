@@ -98,7 +98,7 @@ class NodeStructuralBehavioralMetric(SimilarityMetric):
                 )
                 print(f"    Type Similarity: {type_similarity}")
 
-                similarity = (label_similarity + type_similarity + semantic_similarity) / 3
+                similarity = (label_similarity + type_similarity) / 2
                 print(f"    Combined Similarity: {similarity}")
 
                 if similarity > best_similarity:
@@ -142,7 +142,7 @@ class NodeStructuralBehavioralMetric(SimilarityMetric):
                     graph2.nodes[neighbor2].get("type", "")
                 )
 
-                similarity = (label_similarity + type_similarity + semantic_similarity) / 3
+                similarity = (label_similarity + type_similarity) / 2
 
                 if similarity > best_similarity:
                     best_similarity = similarity
@@ -221,7 +221,7 @@ class NodeStructuralBehavioralMetric(SimilarityMetric):
         
         return contextual_similarity
 
-    def node_matching_similarity(self, threshold=0.5, ignore_types=None):
+    def node_matching_similarity(self, threshold=1, ignore_types=None):
         """
         Compute node matching similarity between reference and altered graphs, including gateways.
         """
@@ -270,8 +270,9 @@ class NodeStructuralBehavioralMetric(SimilarityMetric):
 
             if best_match_score >= threshold:
                 total_similarity += best_match_score
+                print(f"total similarity till now = {total_similarity}")
                 matched_pairs.append((node1, best_match_node))
-                self.similarity_scores[(node1, best_match_node)] = best_match_score  # Store similarity score
+                self.similarity_scores[(node1, best_match_node)] = best_match_score  
 
         valid_nodes_graph1 = [
             n for n, attr in self.reference_graph.nodes(data=True) if attr.get("type", "") not in ignore_types
@@ -281,15 +282,18 @@ class NodeStructuralBehavioralMetric(SimilarityMetric):
         ]
 
         total_valid_nodes = len(valid_nodes_graph1) + len(valid_nodes_graph2)
+        print(f"total valid nodes = {total_valid_nodes}")
+        
+        print(f"total_similarity = {total_similarity}")
+        print(f" * 2 = {total_similarity * 2}")
         similarity_score = (2 * total_similarity) / total_valid_nodes if total_valid_nodes > 0 else 0
-
+        print(f"similarity score = {similarity_score}")
         # Class attributes
         self.matched_pairs = matched_pairs
 
         print(matched_pairs)
 
         return similarity_score
-
 
     def calculate_structural_similarity(self):
         """
@@ -501,25 +505,25 @@ class NodeStructuralBehavioralMetric(SimilarityMetric):
 
     def compute_weight(self, term, causal_footprint, graph):
         """
-        Compute the weight of an index term for a graph.
+        Compute the weight of an index term for a graph, incorporating contextual similarity.
         """
         if isinstance(term, tuple) and len(term) == 2:  # Mapped activity or causal link
 
             # Case 1: Mapped Activities
             if term in self.mapping.items():
                 node1, node2 = term
-                if node1 in graph.nodes and node2 in graph.nodes:  # Ensure nodes exist
+                if node1 in graph.nodes and node2 in graph.nodes:
                     # Retrieve precomputed similarity score
                     if (node1, node2) in self.similarity_scores:
                         return self.similarity_scores[(node1, node2)]
                     else:
-                        return 0  # If no similarity score is found, return 0
+                        return 0  
 
             # Case 2: Look-Back Causal Links
             for target, links in causal_footprint.items():
                 if term in {(source, target) for source in links["look_back"]}:
                     source, target_node = term
-                    if source in graph.nodes and target_node in graph.nodes:  # Ensure nodes exist
+                    if source in graph.nodes and target_node in graph.nodes:
                         attr_source = graph.nodes[source]
                         attr_target = graph.nodes[target_node]
 
@@ -528,18 +532,22 @@ class NodeStructuralBehavioralMetric(SimilarityMetric):
                         semantic_similarity = self.calculate_semantic_similarity(attr_source.get("label", ""), attr_target.get("label", ""))
                         label_similarity = max(syntactic_similarity, semantic_similarity)
                         type_similarity = self.calculate_type_similarity(attr_source.get("type", ""), attr_target.get("type", ""))
-                        
+
+                        # Compute contextual similarity
+                        contextual_similarity = self.calculate_contextual_similarity(source, graph, target_node, graph)
+
                         length_lookback = len(links["look_back"])
                         print(f"length of look back: {length_lookback}")
-                        # Combine similarities
-                        combined_similarity = (label_similarity + type_similarity) / (2 ** len(links["look_back"]))
+
+                        # Combine similarities (including contextual similarity)
+                        combined_similarity = (label_similarity + type_similarity + contextual_similarity) / (2 ** length_lookback)
 
                         return combined_similarity
 
             # Case 3: Look-Ahead Causal Links
                 if term in {(target, successor) for successor in links["look_ahead"]}:
                     target_node, successor = term
-                    if target_node in graph.nodes and successor in graph.nodes:  # Ensure nodes exist
+                    if target_node in graph.nodes and successor in graph.nodes:
                         attr_target = graph.nodes[target_node]
                         attr_successor = graph.nodes[successor]
 
@@ -549,15 +557,20 @@ class NodeStructuralBehavioralMetric(SimilarityMetric):
                         label_similarity = max(syntactic_similarity, semantic_similarity)
                         type_similarity = self.calculate_type_similarity(attr_target.get("type", ""), attr_successor.get("type", ""))
 
+                        # Compute contextual similarity
+                        contextual_similarity = self.calculate_contextual_similarity(target_node, graph, successor, graph)
+
                         length_lookahead = len(links["look_ahead"])
                         print(f"length of look ahead: {length_lookahead}")
-                        # Combine similarities
-                        combined_similarity = (label_similarity + type_similarity) / (2 ** len(links["look_ahead"]))
+
+                        # Combine similarities (including contextual similarity)
+                        combined_similarity = (label_similarity + type_similarity + contextual_similarity) / (2 ** length_lookahead)
 
                         return combined_similarity
 
         # Case 4: Default to 0 if no conditions are satisfied
         return 0
+
 
 
     def generate_index_vectors(self, index_terms, causal_footprint1, causal_footprint2):
