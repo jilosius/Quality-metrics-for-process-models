@@ -19,7 +19,7 @@ class Parameters(Enum):
 
 
 class ComplianceMetric(SimilarityMetric):
-    def __init__(self, reference_model=None, altered_model=None, file_path=None, output_path=None, label_similarity_threshold=1):
+    def __init__(self, reference_model=None, altered_model=None, file_path=None, output_path=None, label_similarity_threshold=0.8):
         super().__init__(reference_model, altered_model)
         self.reference_model = reference_model
         self.altered_model = altered_model
@@ -28,37 +28,28 @@ class ComplianceMetric(SimilarityMetric):
         self.output_path = output_path if output_path else "output_test.bpmn"
 
     def convert_to_petri_net(self, bpmn_path):
-        """
-        Converts a BPMN file to a Petri net and optionally visualizes it.
         
-        Args:
-            bpmn_path (str): Path to the BPMN file.
         
-        Returns:
-            tuple: (PetriNet, initial_marking, final_marking)
-        """
-        # Load the BPMN model
         bpmn_graph = pm4py.read_bpmn(bpmn_path)
-        pm4py.view_bpmn(bpmn_graph)
+        # pm4py.view_bpmn(bpmn_graph)
     
         # Convert BPMN to Petri net
         net, im, fm = self.apply(bpmn_graph)
 
         # # Visualize the Petri net
-        try:
-            from pm4py.visualization.petri_net import visualizer as pn_visualizer
-            print("Visualizing the Petri net...")
-            gviz = pn_visualizer.apply(net, im, fm)
-            pn_visualizer.view(gviz)  # Opens in the default viewer
-        except ImportError:
-            print("Petri net visualization skipped (missing pm4py visualization libraries).")
-        except Exception as e:
-            print(f"An error occurred during visualization: {e}")
+        # try:
+        #     from pm4py.visualization.petri_net import visualizer as pn_visualizer
+        #     print("Visualizing the Petri net...")
+        #     gviz = pn_visualizer.apply(net, im, fm)
+        #     pn_visualizer.view(gviz)  # Opens in the default viewer
+        # except ImportError:
+        #     print("Petri net visualization skipped (missing pm4py visualization libraries).")
+        # except Exception as e:
+        #     print(f"An error occurred during visualization: {e}")
 
         return net, im, fm
 
     def calculate_similarity(self, label1, label2, type1, type2):
-        """Calculate syntactic/semantic similarity between labels."""
         type_similarity = self.calculate_type_similarity(type1, type2)
 
         if type_similarity == 1:
@@ -71,17 +62,6 @@ class ComplianceMetric(SimilarityMetric):
             return 0.0
 
     def match_nodes(self, reference_flowNodes, altered_flowNodes):
-        """
-        Match nodes from the altered model to the reference model based on label similarity,
-        allowing one altered node to correspond to multiple reference nodes (many-to-one).
-
-        Args:
-            reference_flowNodes (list): Flow nodes from the reference model.
-            altered_flowNodes (list): Flow nodes from the altered model.
-
-        Returns:
-            dict: A mapping { altered_node : [list_of_reference_nodes] }.
-        """
         matches = {}
         for alt_node in altered_flowNodes:
             matched_refs = []
@@ -92,11 +72,9 @@ class ComplianceMetric(SimilarityMetric):
                     alt_node.type,
                     ref_node.type
                 )
-                # If similarity is above threshold, consider it a valid match
                 if similarity > self.label_similarity_threshold:
                     matched_refs.append(ref_node)
 
-            # If this altered node matched any reference node(s), record them
             if matched_refs:
                 matches[alt_node] = matched_refs
 
@@ -117,50 +95,34 @@ class ComplianceMetric(SimilarityMetric):
         return new_marking
 
     def is_petri_net_sound(self, net: PetriNet, initial_marking: Marking, final_marking: Marking) -> bool:
-        """
-        Checks if the given Petri net is sound by performing a reachability analysis.
-        """
         visited = set()
         queue = [initial_marking]
 
         def normalize_marking(marking):
-            # Normalize the marking into a consistent, sortable format
             return tuple(sorted((place, tokens) for place, tokens in marking.items() if tokens > 0))
 
         normalized_final_marking = normalize_marking(final_marking)
 
-        # print("Starting soundness check...")
-        # print(f"Initial marking: {normalize_marking(initial_marking)}")
-        # print(f"Final marking: {normalized_final_marking}")
+       
 
         while queue:
             current_marking = queue.pop(0)
             normalized_marking = normalize_marking(current_marking)
-
-            # print(f"Visiting marking: {normalized_marking}")
-
-            # If we reach the final marking, check token cleanup
+            
             if normalized_marking == normalized_final_marking:
-                # Ensure no tokens are left in places outside the final marking
                 for place, tokens in current_marking.items():
                     if place not in final_marking and tokens > 0:
-                        # print(f"Tokens remain in non-final place: {place} -> {tokens} tokens.")
                         return False
-                # print("Final marking reached successfully.")
                 continue
 
-            # Check if this marking was already visited
             if normalized_marking in visited:
                 # print(f"Marking already visited: {normalized_marking}")
                 continue
             visited.add(normalized_marking)
 
-            # Get all enabled transitions
             enabled_transitions = [
                 t for t in net.transitions if self.is_transition_enabled(t, current_marking)
             ]
-
-            # print(f"Enabled transitions from {normalized_marking}: {[t.label for t in enabled_transitions]}")
 
             # If no transitions are enabled and it's not the final marking, it's a deadlock
             if not enabled_transitions:
@@ -177,13 +139,10 @@ class ComplianceMetric(SimilarityMetric):
         return True
 
     def generate_all_firing_sequences(self, net: PetriNet, initial_marking: Marking, final_marking: Marking, unroll_factor=2) -> List[List[PetriNet.Transition]]:
-            """
-            Generates all firing sequences for a Petri net from the initial marking to the final marking,
-            ensuring start and end events are visited exactly once and allowing limited exploration of cycles.
-            """
+
             all_sequences = []
 
-            # Identify start and end transitions (safely handle None labels)
+
             start_transitions = [t for t in net.transitions if t.label and (t.label.lower() == "start" or "startevent" in t.label.lower())]
             end_transitions = [t for t in net.transitions if t.label and (t.label.lower() == "end" or "endevent" in t.label.lower())]
 
@@ -238,18 +197,6 @@ class ComplianceMetric(SimilarityMetric):
 
 
     def calculate_lcs(self, seq1, seq2):
-        """
-        Calculate the length of the Longest Common Subsequence (LCS) between two sequences.
-        Ignores "Unmapped" placeholders and uses Transition labels for comparison.
-
-        Args:
-            seq1 (list): First sequence (e.g., reference).
-            seq2 (list): Second sequence (e.g., altered, mapped).
-
-        Returns:
-            int: Length of the LCS.
-        """
-        # Extract labels from Transition objects
         seq1_labels = [item.label for item in seq1]
         seq2_labels = [item.label for item in seq2]
 
@@ -264,24 +211,10 @@ class ComplianceMetric(SimilarityMetric):
                 else:
                     dp[i][j] = max(dp[i - 1][j], dp[i][j - 1])
 
-        # Debugging: Print the annotated DP table
-        # print("Final Annotated DP Table:")
-        # self.print_annotated_dp_table(dp, seq1_labels, seq2_labels)
-
         # Return the LCS length
         return dp[-1][-1]
 
     def get_mapped_firing_sequences(self, alt_sequences, granularity_mapping):
-            """
-            Generate mapped firing sequences using the granularity mapping.
-
-            Args:
-                alt_sequences (list): Firing sequences from the altered model.
-                granularity_mapping (dict): Mapping of altered model transitions to reference model transitions.
-
-            Returns:
-                list: Mapped firing sequences.
-            """
             mapped_sequences = []
             for seq in alt_sequences:
                 mapped_seq = [granularity_mapping.get(transition, transition) for transition in seq]
@@ -289,33 +222,14 @@ class ComplianceMetric(SimilarityMetric):
             return mapped_sequences
 
     def get_extended_firing_sequences(self, ref_sequences):
-        """
-        Generate extended firing sequences by applying user-selected partitions.
-
-        Args:
-            ref_sequences (list): Firing sequences from the reference model.
-
-        Returns:
-            list: Extended firing sequences.
-        """
-        # Apply exclusion and ordering based on user-selected partitions
-        # Placeholder: Return sequences as-is for now
         return ref_sequences
 
     def calculate(self):
-        """
-        Calculate compliance metrics (Compliance Degree and Compliance Maturity).
-        
-        Returns:
-            dict: A dictionary containing Compliance Degree and Compliance Maturity values.
-        """
 
-        # Apply granularity mapping
         granularity_mapping = self.match_nodes(self.reference_model.flowNodes, self.altered_model.flowNodes)
         
        
 
-        # Convert BPMN models to WF-nets
         net_ref, im_ref, fm_ref = self.convert_to_petri_net(self.file_path)
         self.print_petri_net_details(net_ref, im_ref, fm_ref)
 
@@ -368,7 +282,6 @@ class ComplianceMetric(SimilarityMetric):
         for seq in map_alt_sequences:
             print(", ".join([t.label if t.label is not None else "None" for t in seq]))
 
-        # Calculate FSC (Firing Sequence Compliance) for each pair of sequences
         fsc_values = []
         for alt_seq in map_alt_sequences:
             max_fsc = 0
@@ -376,14 +289,13 @@ class ComplianceMetric(SimilarityMetric):
                 max_fsc = max(max_fsc, self.calculate_lcs(ref_seq, alt_seq))
             fsc_values.append(max_fsc)
 
-        # Calculate compliance metrics
         fscd_values = [] 
         for fsc, seq in zip(fsc_values, map_alt_sequences):  
             if len(seq) > 0:  
-                fscd = fsc / len(seq)  # Calculate FSC Degree (FSC divided by the sequence length)
+                fscd = fsc / len(seq)
             else:
                 fscd = 0  
-            fscd_values.append(fscd)  # Append the calculated FSCD value to the list
+            fscd_values.append(fscd) 
 
 
         fscm_values = [] 
@@ -394,11 +306,9 @@ class ComplianceMetric(SimilarityMetric):
                 fscm = 0 
             fscm_values.append(fscm)  # Append the calculated FSCM value to the list
 
-        # Debug FSC Values
         print("\nFSC Values:")
         print(fsc_values)
 
-        # Debug FSCD and FSCM Values
         print("\nFSCD Values:")
         print(fscd_values)
 
@@ -724,22 +634,12 @@ class ComplianceMetric(SimilarityMetric):
 
 
         # def compute_metric(self, process_object1, process_object2):
-    #     """
-    #     Computes the compliance metric for two given process objects.
-        
-    #     :param process_object1: The reference process object.
-    #     :param process_object2: The target process object to evaluate.
-    #     :return: A dictionary with some placeholder values (example).
-    #     """
-    #     # Convert both process objects to WF-nets
     #     wf_net1 = self.convert_to_wf_net(process_object1)
     #     wf_net2 = self.convert_to_wf_net(process_object2)
 
-    #     # Extract firing sequences for both WF-nets
     #     firing_sequences1 = self.extract_firing_sequences(wf_net1)
     #     firing_sequences2 = self.extract_firing_sequences(wf_net2)
 
-    #     # Placeholder for a real compliance calculation
     #     return {
     #         "firing_sequences_model1": len(firing_sequences1),
     #         "firing_sequences_model2": len(firing_sequences2)

@@ -9,7 +9,7 @@ from similarity_metric.similarity_metric import SimilarityMetric
 
 class F1Score(SimilarityMetric):
 
-    def __init__(self, reference_model, altered_model, label_similarity_threshold=1):
+    def __init__(self, reference_model, altered_model, label_similarity_threshold=0.8):
         super().__init__(reference_model, altered_model)
         self.label_similarity_threshold = label_similarity_threshold
 
@@ -17,7 +17,6 @@ class F1Score(SimilarityMetric):
 
     
     def calculate_similarity(self, label1, label2, type1, type2):
-        """Calculate syntactic/semantic similarity between labels."""
         # print(f"Calculating similarity between labels: '{label1}' and '{label2}'")
 
         type_similarity = self.calculate_type_similarity(type1, type2)
@@ -39,7 +38,6 @@ class F1Score(SimilarityMetric):
             return 0.0
 
     def match_nodes(self, reference_flowNodes, altered_flowNodes):
-        """Match nodes based on label similarity."""
         matches = []
         
         for ref_node in reference_flowNodes:
@@ -52,7 +50,7 @@ class F1Score(SimilarityMetric):
                 similarity = self.calculate_similarity(ref_node.label, alt_node.label, ref_node.type, alt_node.type)
                 # print(f"Label Similarity: {similarity}")
                 # print("-----------")
-                if similarity > self.label_similarity_threshold and similarity > best_score:
+                if similarity >= self.label_similarity_threshold and similarity > best_score:
                     best_match = alt_node
                     best_score = similarity
             if best_match:
@@ -65,7 +63,6 @@ class F1Score(SimilarityMetric):
         return matches
 
     def match_flows(self, reference_flows, altered_flows):
-        """Match flows based on source and target node similarity."""
         matches = []
         # print("\n========= Matching flows between reference and altered models =========")
         for ref_flow in reference_flows:
@@ -79,7 +76,6 @@ class F1Score(SimilarityMetric):
         return matches
 
     def calculate(self):
-        # Get flow nodes and flows
         reference_flowNodes = self.reference_model.flowNodes
         altered_flowNodes = self.altered_model.flowNodes
         reference_flows = self.reference_model.flows
@@ -112,7 +108,6 @@ class F1Score(SimilarityMetric):
         fn_flows = len(reference_flows) - tp_flows
         print(f"\nMatched flows: TP={tp_flows}, FP={fp_flows}, FN={fn_flows}")
 
-        # Calculate Precision, Recall, F1 Score
         tp = tp_nodes + tp_flows
         fp = fp_nodes + fp_flows
         fn = fn_nodes + fn_flows
