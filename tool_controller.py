@@ -34,11 +34,17 @@ class ToolController:
             print("No alterations specified. Cloning reference model as altered model.")
             self.altered_model = self.reference_model.clone()
         else:
-            # Applying alterations
-            for alteration, repetitions in alterations:
-                print(f"Applying alteration: {alteration} {repetitions} time(s)...")
-                model_alteration.apply_alteration(alteration, repetitions)
-            self.altered_model = model_alteration.altered_model
+            for alteration, param in alterations:
+                if alteration == "remove_flowNode":  
+                    print(f"Removing FlowNode: {param}...")
+                    model_alteration.altered_model = model_alteration.apply_alteration(alteration, 1, param)  # ✅ Ensure assignment
+                else:
+                    print(f"Applying alteration: {alteration} {param} time(s)...")
+                    model_alteration.altered_model = model_alteration.apply_alteration(alteration, param)  # ✅ Ensure assignment
+
+            self.altered_model = model_alteration.altered_model  # ✅ Properly update self.altered_model
+ 
+
 
  
 
@@ -48,11 +54,14 @@ class ToolController:
         # Calculating similarity metrics
         results_summary = []
         for metric_name in self.metrics:
+            
             metric = SimilarityMetric.get_metric(metric_name, self.reference_model, self.altered_model, file_path, output_path)
             print("\n================================================================================")
             print(f"\nCalculating metric: {metric_name}...")
-            results = metric.calculate()
-
+            try:
+                results = metric.calculate()
+            except Exception as e:
+                print(f"Error calculating {metric_name}: {e}")
             # Collect results for summary printing
             results_summary.append((metric_name, results))
 
@@ -141,7 +150,7 @@ if __name__ == "__main__":
     parser.add_argument("-remove_flow", type=int, nargs="?", const=1, help="Remove a flow from the process model.")
     parser.add_argument("-remove_gateway", type=int, nargs="?", const=1, help="Remove a gateway from the process model.")
     parser.add_argument("-change_label", type=int, nargs="?", const=1, help="Change the label of a node in the process model.")
-    parser.add_argument("-remove_flowNode", type=int, nargs="?", const=1, help="Remove a flowNode from the process model.")
+    parser.add_argument("-remove_flowNode", type=str, nargs="+", help="Remove one or more flowNodes from the process model.")
     parser.add_argument("-no_alterations", action="store_true", help="Run the tool without applying any alterations.")
 
     args = parser.parse_args()
@@ -164,7 +173,9 @@ if __name__ == "__main__":
         if args.change_label:
             alterations.append(("change_label", args.change_label))
         if args.remove_flowNode:
-            alterations.append(("remove_flow", args.remove_flowNode))
+            for node_id in args.remove_flowNode:
+                alterations.append(("remove_flowNode", node_id))  
+
 
     # Execute the tool
     start_time = time.time()

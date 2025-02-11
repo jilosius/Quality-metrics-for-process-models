@@ -37,7 +37,6 @@ class Experiment:
         self.results = [] 
 
     def simulate_alterations(self, file_path, metric_names, output_csv):
-
         print("Reading the BPMN model...")
         reference_bpmn_tree = IOHandler.read_bpmn(file_path)
 
@@ -57,11 +56,26 @@ class Experiment:
                 model_alteration.apply_alteration(self.alteration_type, num_alterations)
 
                 altered_model = model_alteration.altered_model
-                node_structural_scores = SimilarityMetric.get_metric(metric_names[0], reference_model, altered_model).calculate()
-                f1_scores = SimilarityMetric.get_metric(metric_names[1], reference_model, altered_model).calculate()
-                compliance_scores = SimilarityMetric.get_metric(metric_names[2], reference_model, altered_model, file_path, "output_test.bpmn").calculate()
 
-                # Store the results
+                try:
+                    node_structural_scores = SimilarityMetric.get_metric(metric_names[0], reference_model, altered_model).calculate()
+                except Exception as e:
+                    print(f"Error calculating {metric_names[0]}: {e}")
+                    node_structural_scores = {"node_similarity": 0, "structural_similarity": 0, "behavioral_similarity": 0}
+
+                try:
+                    f1_scores = SimilarityMetric.get_metric(metric_names[1], reference_model, altered_model).calculate()
+                except Exception as e:
+                    print(f"Error calculating {metric_names[1]}: {e}")
+                    f1_scores = {"Precision": 0, "Recall": 0, "F1 Score": 0}
+
+                try:
+                    compliance_scores = SimilarityMetric.get_metric(metric_names[2], reference_model, altered_model, file_path, "output_test.bpmn").calculate()
+                except Exception as e:
+                    print(f"Error calculating {metric_names[2]}: {e}")
+                    compliance_scores = {"compliance_degree": 0, "compliance_maturity": 0}
+
+                # Store the results safely
                 result_entry = (
                     num_alterations,
                     repetition + 1,
@@ -78,7 +92,7 @@ class Experiment:
 
                 self.results.append(result_entry)
 
-                # Print to  log
+                # Print to log
                 print(f"Results for alteration {num_alterations}, repetition {repetition + 1}:")
                 print(f"Node Similarity: {result_entry[3]:.6f}, Structural Similarity: {result_entry[4]:.6f}, "
                     f"Behavioral Similarity: {result_entry[5]:.6f}")
@@ -87,9 +101,8 @@ class Experiment:
 
             num_alterations += 1
 
-
-
         self.save_results(output_csv)
+
 
     def save_results(self, output_file):
         with open(output_file, mode='w', newline='') as file:

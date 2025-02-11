@@ -1,7 +1,7 @@
 import xml.etree.ElementTree as ET
 from model_alteration.add_gateway import AddGateway
 from model_alteration.remove_flow import RemoveFlow
-from model_alteration.remove_flowNode import RemoveFlowNode
+from model_alteration.remove_activity import RemoveActivity
 from model_alteration.remove_gateway import RemoveGateway
 from process.process import Process
 from model_alteration.model_alteration import ModelAlteration
@@ -55,7 +55,7 @@ def test_process():
     print_process_state(alteration.altered_model, "Process after adding Flow:")
 
     # Remove node
-    remove_node = RemoveFlowNode()
+    remove_node = RemoveActivity()
     alteration.execute(remove_node)
     print_process_state(alteration.altered_model, "Process after removing FlowNode:")
 

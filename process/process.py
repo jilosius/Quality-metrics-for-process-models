@@ -169,17 +169,17 @@ class Process:
     #                 ET.SubElement(lane_elem, f"{{{bpmn_namespace}}}flowNodeRef").text = flow_node.flowNode_id
         
         # Add flow nodes
-        for flow_node in self.flowNodes:
-            node_elem = ET.SubElement(process, f"{{{bpmn_namespace}}}{flow_node.type}", 
-                                    id=flow_node.flowNode_id, name=flow_node.label)
+        # for flow_node in self.flowNodes:
+        #     node_elem = ET.SubElement(process, f"{{{bpmn_namespace}}}{flow_node.type}", 
+        #                             id=flow_node.flowNode_id, name=flow_node.label)
         
-        # Add sequence flows
-        for flow in self.flows:
-            flow_elem = ET.SubElement(process, f"{{{bpmn_namespace}}}sequenceFlow", 
-                                    id=flow.id, sourceRef=flow.source.flowNode_id, 
-                                    targetRef=flow.target.flowNode_id)
-            if flow.label:
-                flow_elem.set("name", flow.label)
+        # # Add sequence flows
+        # for flow in self.flows:
+        #     flow_elem = ET.SubElement(process, f"{{{bpmn_namespace}}}sequenceFlow", 
+        #                             id=flow.id, sourceRef=flow.source.flowNode_id, 
+        #                             targetRef=flow.target.flowNode_id)
+        #     if flow.label:
+        #         flow_elem.set("name", flow.label)
 
     def print_process_state(self):
         # print(f"\n{message}")

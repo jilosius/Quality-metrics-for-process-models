@@ -26,5 +26,8 @@ if __name__ == "__main__":
     print(test.calculate_syntactic_similarity("Prepare chicken", "Prepare chicker"))
     print(test.calculate_syntactic_similarity("Malek", "Saif"))
     print(test.calculate_syntactic_similarity("Event_1u56gjw", "Gateway_0ve5rnc"))
+    
+    print(test.calculate_syntactic_similarity("Decide what's for dinner", "i4vUxmJR6V_1"))
+    print(test.calculate_syntactic_similarity("Decide what's for dinner", "i4vUxmJR6V_1i4vUxmJR6V_1"))
 
-    print(multiprocessing.cpu_count())
+    # print(multiprocessing.cpu_count())

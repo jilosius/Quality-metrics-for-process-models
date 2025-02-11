@@ -6,7 +6,7 @@ import spacy
 import numpy as np
 import networkx as nx
 from tabulate import tabulate
-
+from sklearn.metrics.pairwise import cosine_similarity, cosine_distances
 
 def get_all_paths(graph, source, target):
     """
@@ -200,7 +200,7 @@ class NodeStructuralBehavioralMetric(SimilarityMetric):
         
         return contextual_similarity
 
-    def node_matching_similarity(self, threshold=0.8, ignore_types=None):
+    def node_matching_similarity(self, threshold=0.2, ignore_types=None):
         if ignore_types is None:
             ignore_types = set()
 
@@ -320,29 +320,24 @@ class NodeStructuralBehavioralMetric(SimilarityMetric):
                 matched_altered_nodes.add(best_match)
                 total_substitution_cost += (1 - best_similarity)
 
-        # Calculate nodes and edges deleted or inserted
         nodes_deleted_or_inserted = len(unmatched_reference_nodes) + len(unmatched_altered_nodes)
         unmatched_edges = set()
 
-        # Create node mapping dictionaries
         node_mapping = {ref: alt for ref, alt in matched_pairs}
         reverse_mapping = {alt: ref for ref, alt in matched_pairs}
 
-        # Check edges in the reference graph
         for source, target in reference_graph_copy.edges():
             mapped_source = node_mapping.get(source)
             mapped_target = node_mapping.get(target)
             if mapped_source is None or mapped_target is None or not altered_graph_copy.has_edge(mapped_source, mapped_target):
                 unmatched_edges.add((source, target))
 
-        # Check edges in the altered graph
         for source, target in altered_graph_copy.edges():
             mapped_source = reverse_mapping.get(source)
             mapped_target = reverse_mapping.get(target)
             if mapped_source is None or mapped_target is None or not reference_graph_copy.has_edge(mapped_source, mapped_target):
                 unmatched_edges.add((mapped_source, mapped_target))
 
-        # Total number of unmatched edges
         edges_deleted_or_inserted = len(unmatched_edges)
 
         # Calculate structural similarity
@@ -535,8 +530,28 @@ class NodeStructuralBehavioralMetric(SimilarityMetric):
 
         return np.array(vector1), np.array(vector2)
 
-    def calculate_cosine_similarity(self, vector1, vector2):
+    # def calculate_cosine_similarity(self, vector1, vector2):
         
+    #     print("\nComparison of Vectors:")
+    #     print(f"{'Index':<10} {'Vector1':<20} {'Vector2':<20}")
+    #     print("-" * 50)
+    #     for i, (v1, v2) in enumerate(zip(vector1, vector2)):
+    #         print(f"{i:<10} {v1:<20} {v2:<20}")
+        
+    #     print("\n-------")
+
+
+    #     dot_product = np.dot(vector1, vector2)
+    #     magnitude1 = np.linalg.norm(vector1)
+    #     magnitude2 = np.linalg.norm(vector2)
+
+    #     if magnitude1 == 0 or magnitude2 == 0:
+    #         return 0  
+
+    #     return dot_product / (magnitude1 * magnitude2)
+    
+    
+    def calculate_cosine_similarity(self, vector1, vector2):
         print("\nComparison of Vectors:")
         print(f"{'Index':<10} {'Vector1':<20} {'Vector2':<20}")
         print("-" * 50)
@@ -545,15 +560,12 @@ class NodeStructuralBehavioralMetric(SimilarityMetric):
         
         print("\n-------")
 
+        # Reshape vectors into 2D since sklearn expects 2D arrays
+        vector1 = np.array(vector1).reshape(1, -1)
+        vector2 = np.array(vector2).reshape(1, -1)
 
-        dot_product = np.dot(vector1, vector2)
-        magnitude1 = np.linalg.norm(vector1)
-        magnitude2 = np.linalg.norm(vector2)
-
-        if magnitude1 == 0 or magnitude2 == 0:
-            return 0  
-
-        return dot_product / (magnitude1 * magnitude2)
+        similarity = cosine_similarity(vector1, vector2)[0][0]  # Extract scalar value
+        return similarity
     
     def calculate_behavioral_similarity(self):
         causal_footprint1 = self.generate_causal_footprint(self.reference_graph)
@@ -563,13 +575,13 @@ class NodeStructuralBehavioralMetric(SimilarityMetric):
         print("----------------")
         self.print_causal_footprint(causal_footprint2)
 
-        # Step 2: Generate index terms
+        # generate index terms
         index_terms = self.generate_index_terms(causal_footprint1, causal_footprint2)
 
-        # Step 3: Generate index vectors
+        # generate index vectors
         vector1, vector2 = self.generate_index_vectors(index_terms, causal_footprint1, causal_footprint2)
 
-        # Step 4: Compute cosine similarity
+        # cosine similarity
         return self.calculate_cosine_similarity(vector1, vector2)
     
     def print_graph_table(self, graph, title="Graph"):

@@ -19,7 +19,7 @@ class Parameters(Enum):
 
 
 class ComplianceMetric(SimilarityMetric):
-    def __init__(self, reference_model=None, altered_model=None, file_path=None, output_path=None, label_similarity_threshold=0.8):
+    def __init__(self, reference_model=None, altered_model=None, file_path=None, output_path=None, label_similarity_threshold=0.2):
         super().__init__(reference_model, altered_model)
         self.reference_model = reference_model
         self.altered_model = altered_model
@@ -215,11 +215,21 @@ class ComplianceMetric(SimilarityMetric):
         return dp[-1][-1]
 
     def get_mapped_firing_sequences(self, alt_sequences, granularity_mapping):
-            mapped_sequences = []
-            for seq in alt_sequences:
-                mapped_seq = [granularity_mapping.get(transition, transition) for transition in seq]
-                mapped_sequences.append(mapped_seq)
-            return mapped_sequences
+        mapped_sequences = []  
+        
+        for seq in alt_sequences:  
+            mapped_seq = []  
+            
+            for transition in seq:  
+                if transition in granularity_mapping:  
+                    mapped_seq.append(granularity_mapping[transition])  
+                else:
+                    mapped_seq.append(transition)  
+            
+            mapped_sequences.append(mapped_seq)  
+        
+        return mapped_sequences  
+
 
     def get_extended_firing_sequences(self, ref_sequences):
         return ref_sequences
@@ -244,8 +254,6 @@ class ComplianceMetric(SimilarityMetric):
         print("\nGranularity Mapping:\n")
         # print(granularity_mapping)
         for alt_node, ref_nodes in granularity_mapping.items():
-            # alt_node is a single altered node
-            # ref_nodes is now a *list* of reference nodes
             alt_id = alt_node.flowNode_id
             ref_ids = [rn.flowNode_id for rn in ref_nodes]
 
@@ -332,9 +340,6 @@ class ComplianceMetric(SimilarityMetric):
         }
 
     def build_digraph_from_petri_net(self, net):
-        """
-        Builds a directed graph from a Petri net (for custom analysis).
-        """
         import networkx as nx
         graph = nx.DiGraph()
         for place in net.places:
