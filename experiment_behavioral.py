@@ -11,8 +11,6 @@ from process.process import Process
 from model_alteration.model_alteration import ModelAlteration
 from similarity_metric.similarity_metric import SimilarityMetric
 from similarity_metric.compliance_metric import ComplianceMetric
-from multiprocessing import Pool
-import multiprocessing
 
 class WriteLog:
     def __init__(self, file):
@@ -46,6 +44,15 @@ class Experiment:
 
         num_alterations = 1  
 
+        tokenizer = None
+        model = None
+        if self.alteration_type == "change_label":
+            print("Loading paraphrasing model...")
+            from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+            tokenizer = AutoTokenizer.from_pretrained("Vamsi/T5_Paraphrase_Paws")
+            model = AutoModelForSeq2SeqLM.from_pretrained("Vamsi/T5_Paraphrase_Paws")
+
+
         while num_alterations <= self.max_alterations:
             print(f"Applying {num_alterations} {self.alteration_type}(s)...")
 
@@ -53,9 +60,22 @@ class Experiment:
                 print(f"Iteration number: {repetition + 1}")
 
                 model_alteration = ModelAlteration(reference_model)
-                model_alteration.apply_alteration(self.alteration_type, num_alterations)
+
+                if self.alteration_type == "change_label":
+                    model_alteration.apply_alteration(
+                        self.alteration_type,
+                        num_alterations,
+                        tokenizer=tokenizer,
+                        model=model
+                    )
+                else:
+                    model_alteration.apply_alteration(
+                        self.alteration_type,
+                        num_alterations
+                    )
 
                 altered_model = model_alteration.altered_model
+
 
                 try:
                     node_structural_scores = SimilarityMetric.get_metric(metric_names[0], reference_model, altered_model).calculate()
@@ -120,7 +140,7 @@ class Experiment:
             
 
 
-if __name__ == "__main__":  
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run similarity metric experiments.")
     parser.add_argument("file_path", type=str, help="Path to the BPMN file.")
     parser.add_argument("alteration_type", type=str, help="Type of alteration to apply (e.g., change_label).")
@@ -138,9 +158,12 @@ if __name__ == "__main__":
     with open(output_log, "w") as log_file:
         sys.stdout = sys.stderr = WriteLog(log_file)  
         try:
-            experiment.simulate_alterations(args.file_path, ["NodeStructuralBehavioralMetric", "F1Score", "ComplianceMetric"], args.output_csv)
+            experiment.simulate_alterations(
+                args.file_path,
+                ["NodeStructuralBehavioralMetric", "F1Score", "ComplianceMetric"],
+                args.output_csv
+            )
         finally:
-           
             sys.stdout = sys.__stdout__
             sys.stderr = sys.__stderr__
             print(f"Logs can be found in: {output_log}")

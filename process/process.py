@@ -13,7 +13,7 @@ class Process:
         self.flows = []       
         self.lanes = []       
         self.data_objects = []  
-        self.pools = []  # List of Pool objects
+        self.pools = []  
 
     def from_bpmn(self, root: ET.Element):
         """
@@ -157,30 +157,6 @@ class Process:
 
         return ET.ElementTree(definitions)
 
-    # def _add_elements_to_process(self, process, lanes=None):
-    #     """Helper to add flowNodes, flows, and lanes to a process."""
-    #     bpmn_namespace = "http://www.omg.org/spec/BPMN/20100524/MODEL"
-    #     # Add lanes
-    #     if lanes:
-    #         lane_set = ET.SubElement(process, f"{{{bpmn_namespace}}}laneSet")
-    #         for lane in lanes:
-    #             lane_elem = ET.SubElement(lane_set, f"{{{bpmn_namespace}}}lane", id=lane.lane_id)
-    #             for flow_node in lane.flowNodes:
-    #                 ET.SubElement(lane_elem, f"{{{bpmn_namespace}}}flowNodeRef").text = flow_node.flowNode_id
-        
-        # Add flow nodes
-        # for flow_node in self.flowNodes:
-        #     node_elem = ET.SubElement(process, f"{{{bpmn_namespace}}}{flow_node.type}", 
-        #                             id=flow_node.flowNode_id, name=flow_node.label)
-        
-        # # Add sequence flows
-        # for flow in self.flows:
-        #     flow_elem = ET.SubElement(process, f"{{{bpmn_namespace}}}sequenceFlow", 
-        #                             id=flow.id, sourceRef=flow.source.flowNode_id, 
-        #                             targetRef=flow.target.flowNode_id)
-        #     if flow.label:
-        #         flow_elem.set("name", flow.label)
-
     def print_process_state(self):
         # print(f"\n{message}")
         print("FlowNodes:")
@@ -192,17 +168,9 @@ class Process:
         print("\n")
 
     def clone(self):
-        """
-        Creates a deep copy of the Process object.
-        """
         return copy.deepcopy(self)
     
     def get_node(self, flowNode_id):
-        """
-        Retrieve a FlowNode by its ID.
-        :param flowNode_id: The ID of the FlowNode to find.
-        :return: The FlowNode object if found, else None.
-        """
         return next((node for node in self.flowNodes if node.flowNode_id == flowNode_id), None)
 
 

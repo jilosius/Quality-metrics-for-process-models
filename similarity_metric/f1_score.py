@@ -12,9 +12,6 @@ class F1Score(SimilarityMetric):
     def __init__(self, reference_model, altered_model, label_similarity_threshold=0.2):
         super().__init__(reference_model, altered_model)
         self.label_similarity_threshold = label_similarity_threshold
-
-
-
     
     def calculate_similarity(self, label1, label2, type1, type2):
         # print(f"Calculating similarity between labels: '{label1}' and '{label2}'")

@@ -13,10 +13,7 @@ GATEWAY_TYPE_MAPPING = {
 
 class AddFlowNode:
     def __init__(self, element_type="userTask"):
-        """
-        Initialize the class with the type of element to add.
-        :param element_type: Type of the element (e.g., "userTask", "exclusiveGateway").
-        """
+
         self.element_type = element_type
         self.gateway_type = (
             random.choice(list(GATEWAY_TYPE_MAPPING.values()))

@@ -1,8 +1,8 @@
 from process.process import Process
 
 class ModelAlteration:
-    flow_count = 0  # Shared counter for unique flow IDs across all alterations
-    flowNode_count = 0  # Counter for unique FlowNode IDs
+    flow_count = 0  
+    flowNode_count = 0  
 
     def __init__(self, reference_model: Process):
         self.reference_model = reference_model
@@ -20,7 +20,7 @@ class ModelAlteration:
             "change_label": ("change_label", "ChangeLabel"),
         }
 
-    def apply_alteration(self, alteration_name: str, repetitions: int = 1, node_id: str = None):
+    def apply_alteration(self, alteration_name: str, repetitions: int = 1, node_id: str = None, tokenizer=None, model=None):
         if self.altered_model is None or alteration_name == "no_alterations":
             self.altered_model = self.reference_model.clone()
 
@@ -33,13 +33,16 @@ class ModelAlteration:
         alteration_class = getattr(alteration_module, class_name)
 
         for i in range(repetitions):
-            if alteration_name == "remove_flowNode" and node_id:
-                alteration_instance = alteration_class(node_id)  # Pass node ID
+            if alteration_name == "change_label":
+                alteration_instance = alteration_class(node_id=node_id, tokenizer=tokenizer, model=model)
+            elif alteration_name == "remove_flowNode" and node_id:
+                alteration_instance = alteration_class(node_id)
             else:
-                alteration_instance = alteration_class()  # Use default constructor
+                alteration_instance = alteration_class()
 
             self.altered_model = alteration_instance.apply(self.altered_model)
             print(f"Applied alteration: {alteration_name} on {node_id if node_id else 'random node'}")
 
         return self.altered_model
+
 

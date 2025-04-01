@@ -4,11 +4,11 @@ from io_handler import IOHandler
 from process.process import Process
 from model_alteration.model_alteration import ModelAlteration
 from similarity_metric.similarity_metric import SimilarityMetric
-from similarity_metric.compliance_metric import ComplianceMetric
-
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 
 
 class ToolController:
+    
     
     def __init__(self):
         self.metrics = ["NodeStructuralBehavioralMetric", "F1Score","ComplianceMetric"]  # List of available metrics  
@@ -19,6 +19,14 @@ class ToolController:
         # Read BPMN model
         print("Reading the BPMN model...")
         reference_bpmn_tree = IOHandler.read_bpmn(file_path)
+
+        # Only load tokenizer/model if change_label is used
+        tokenizer = None
+        model = None
+        if any(alteration == "change_label" for alteration, _ in alterations):
+            from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+            tokenizer = AutoTokenizer.from_pretrained("Vamsi/T5_Paraphrase_Paws")
+            model = AutoModelForSeq2SeqLM.from_pretrained("Vamsi/T5_Paraphrase_Paws")
 
         # Convert process object
         print("Converting BPMN model to Process object...")
@@ -35,18 +43,23 @@ class ToolController:
             self.altered_model = self.reference_model.clone()
         else:
             for alteration, param in alterations:
-                if alteration == "remove_flowNode":  
+                if alteration == "remove_flowNode":
                     print(f"Removing FlowNode: {param}...")
-                    model_alteration.altered_model = model_alteration.apply_alteration(alteration, 1, param)  # ✅ Ensure assignment
+                    model_alteration.altered_model = model_alteration.apply_alteration(
+                        alteration, 1, param
+                    )
+                elif alteration == "change_label":
+                    print(f"Applying alteration: {alteration} {param} time(s)...")
+                    model_alteration.altered_model = model_alteration.apply_alteration(
+                        alteration, param, tokenizer=tokenizer, model=model
+                    )
                 else:
                     print(f"Applying alteration: {alteration} {param} time(s)...")
-                    model_alteration.altered_model = model_alteration.apply_alteration(alteration, param)  # ✅ Ensure assignment
+                    model_alteration.altered_model = model_alteration.apply_alteration(
+                        alteration, param
+                    )
 
-            self.altered_model = model_alteration.altered_model  # ✅ Properly update self.altered_model
- 
-
-
- 
+            self.altered_model = model_alteration.altered_model
 
 
 
@@ -166,6 +179,7 @@ if __name__ == "__main__":
             alterations.append(("add_gateway", args.add_gateway))
         if args.remove_activity:
             alterations.append(("remove_activity", args.remove_activity))
+
         if args.remove_flow:
             alterations.append(("remove_flow", args.remove_flow))
         if args.remove_gateway:

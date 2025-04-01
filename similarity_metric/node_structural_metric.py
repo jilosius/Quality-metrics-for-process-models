@@ -9,9 +9,7 @@ from tabulate import tabulate
 from sklearn.metrics.pairwise import cosine_similarity, cosine_distances
 
 def get_all_paths(graph, source, target):
-    """
-    Get all simple paths from source to target in the graph.
-    """
+
     try:
         return list(nx.all_simple_paths(graph, source, target))
     except nx.NetworkXNoPath:
@@ -30,8 +28,6 @@ class NodeStructuralBehavioralMetric(SimilarityMetric):
         self.print_graph_table(self.reference_graph, "Reference Graph")
         self.print_graph_table(self.altered_graph, "Altered Graph")
 
-   
-    
     def calculate(self):
         node_similarity_score = self.node_matching_similarity()
         structural_similarity_score = self.calculate_structural_similarity()
@@ -59,7 +55,6 @@ class NodeStructuralBehavioralMetric(SimilarityMetric):
                 label=flow.label,
             )
         return diagram_graph
-
 
     def calculate_optimal_equivalence_mapping(self, neighbors1, neighbors2, graph1, graph2):
         matched_pairs = []
@@ -511,8 +506,6 @@ class NodeStructuralBehavioralMetric(SimilarityMetric):
         # Case 4: Default to 0 
         return 0
 
-
-
     def generate_index_vectors(self, index_terms, causal_footprint1, causal_footprint2):
         index_terms = list(index_terms)  
         vector1 = []
@@ -530,27 +523,6 @@ class NodeStructuralBehavioralMetric(SimilarityMetric):
 
         return np.array(vector1), np.array(vector2)
 
-    # def calculate_cosine_similarity(self, vector1, vector2):
-        
-    #     print("\nComparison of Vectors:")
-    #     print(f"{'Index':<10} {'Vector1':<20} {'Vector2':<20}")
-    #     print("-" * 50)
-    #     for i, (v1, v2) in enumerate(zip(vector1, vector2)):
-    #         print(f"{i:<10} {v1:<20} {v2:<20}")
-        
-    #     print("\n-------")
-
-
-    #     dot_product = np.dot(vector1, vector2)
-    #     magnitude1 = np.linalg.norm(vector1)
-    #     magnitude2 = np.linalg.norm(vector2)
-
-    #     if magnitude1 == 0 or magnitude2 == 0:
-    #         return 0  
-
-    #     return dot_product / (magnitude1 * magnitude2)
-    
-    
     def calculate_cosine_similarity(self, vector1, vector2):
         print("\nComparison of Vectors:")
         print(f"{'Index':<10} {'Vector1':<20} {'Vector2':<20}")

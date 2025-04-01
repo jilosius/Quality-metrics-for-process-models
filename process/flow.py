@@ -2,7 +2,7 @@ from .flowNode import FlowNode
 
 class Flow:
     def __init__(self, flow_id: str, label: str, source: FlowNode, target: FlowNode):
-        self.id = flow_id  # Assign the flow ID
+        self.id = flow_id  
         self.label = label
         self.source = source
         self.target = target

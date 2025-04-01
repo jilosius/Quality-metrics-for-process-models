@@ -27,8 +27,7 @@ class ComplianceMetric(SimilarityMetric):
         self.file_path = file_path
         self.output_path = output_path if output_path else "output_test.bpmn"
 
-    def convert_to_petri_net(self, bpmn_path):
-        
+    def convert_to_petri_net(self, bpmn_path):    
         
         bpmn_graph = pm4py.read_bpmn(bpmn_path)
         # pm4py.view_bpmn(bpmn_graph)
@@ -191,11 +190,6 @@ class ComplianceMetric(SimilarityMetric):
             dfs(initial_marking, [], {}, 0, 0)
             return all_sequences
 
-
-
-
-
-
     def calculate_lcs(self, seq1, seq2):
         seq1_labels = [item.label for item in seq1]
         seq2_labels = [item.label for item in seq2]
@@ -229,7 +223,6 @@ class ComplianceMetric(SimilarityMetric):
             mapped_sequences.append(mapped_seq)  
         
         return mapped_sequences  
-
 
     def get_extended_firing_sequences(self, ref_sequences):
         return ref_sequences
@@ -558,7 +551,6 @@ class ComplianceMetric(SimilarityMetric):
 
         return net, im, fm
 
-
     def print_petri_net_details(self, petri_net, initial_marking, final_marking):
         """
         Prints the details of a Petri net in a readable format.
@@ -595,7 +587,6 @@ class ComplianceMetric(SimilarityMetric):
         print("---------------")
         for place, tokens in final_marking.items():
             print(f"- {place.name}: {tokens} token(s)")
-
 
     def print_annotated_dp_table(self, dp, seq1, seq2):
         """
