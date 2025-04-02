@@ -1,9 +1,4 @@
-from Levenshtein import ratio
 from similarity_metric.similarity_metric import SimilarityMetric
-from process.process import Process
-from difflib import SequenceMatcher
-import spacy
-import numpy as np
 
 from similarity_metric.similarity_metric import SimilarityMetric
 

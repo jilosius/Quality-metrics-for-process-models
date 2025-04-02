@@ -9,10 +9,8 @@ import pm4py
 from io_handler import IOHandler
 import numpy as np
 from pm4py.objects.petri_net.obj import PetriNet, Marking
-from typing import List, Tuple
-from process.process import Process
+from typing import List
 from tabulate import tabulate
-from collections import deque
 
 class Parameters(Enum):
     USE_ID = "use_id"

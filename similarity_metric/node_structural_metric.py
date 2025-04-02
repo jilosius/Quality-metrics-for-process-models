@@ -1,12 +1,9 @@
-from Levenshtein import ratio
 from similarity_metric.similarity_metric import SimilarityMetric
 from process.process import Process
-from difflib import SequenceMatcher
-import spacy
 import numpy as np
 import networkx as nx
 from tabulate import tabulate
-from sklearn.metrics.pairwise import cosine_similarity, cosine_distances
+from sklearn.metrics.pairwise import cosine_similarity
 
 def get_all_paths(graph, source, target):
 

@@ -4,7 +4,6 @@ from io_handler import IOHandler
 from process.process import Process
 from model_alteration.model_alteration import ModelAlteration
 from similarity_metric.similarity_metric import SimilarityMetric
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 
 
 class ToolController:
@@ -154,42 +153,39 @@ class ToolController:
 if __name__ == "__main__":
     # Parse command-line arguments
     parser = argparse.ArgumentParser(description="Similarity Tool for BPMN Models")
-    parser.add_argument("file_path", type=str, help="Path to the BPMN file to load.")
-    parser.add_argument("output_path", type=str, help="Path to save the altered BPMN file.")
-    parser.add_argument("-add_activity", type=int, nargs="?", const=1, help="Add an activity to the process model.")
-    parser.add_argument("-add_flow", type=int, nargs="?", const=1, help="Add a flow to the process model.")
-    parser.add_argument("-add_gateway", type=int, nargs="?", const=1, help="Add a gateway to the process model.")
-    parser.add_argument("-remove_activity", type=int, nargs="?", const=1, help="Remove an activity from the process model.")
-    parser.add_argument("-remove_flow", type=int, nargs="?", const=1, help="Remove a flow from the process model.")
-    parser.add_argument("-remove_gateway", type=int, nargs="?", const=1, help="Remove a gateway from the process model.")
-    parser.add_argument("-change_label", type=int, nargs="?", const=1, help="Change the label of a node in the process model.")
-    parser.add_argument("-remove_flowNode", type=str, nargs="+", help="Remove one or more flowNodes from the process model.")
-    parser.add_argument("-no_alterations", action="store_true", help="Run the tool without applying any alterations.")
+    parser.add_argument("file_path", type=str, metavar="N", help="Path to the BPMN file to load.")
+    parser.add_argument("output_path", type=str, metavar="N", help="Path to save the altered BPMN file.")
+    parser.add_argument("-add_activity", type=int, nargs="?", const=1, metavar="N", help="Add N activity nodes.")
+    parser.add_argument("-add_flow", type=int, nargs="?", const=1, metavar="N", help="Add N flows.")
+    parser.add_argument("-add_gateway", type=int, nargs="?", const=1, metavar="N", help="Add N gateways.")
+    parser.add_argument("-remove_activity", type=int, nargs="?", const=1, metavar="N", help="Remove N activity nodes.")
+    parser.add_argument("-remove_flow", type=int, nargs="?", const=1, metavar="N", help="Remove N flows.")
+    parser.add_argument("-remove_gateway", type=int, nargs="?", const=1, metavar="N", help="Remove N gateways.")
+    parser.add_argument("-change_label", type=int, nargs="?", const=1, metavar="N", help="Change the label of N nodes.")
+    parser.add_argument("-remove_flowNode", type=str, nargs="+", metavar="ID", help="Remove one or more flowNodes by ID.")
+
 
     args = parser.parse_args()
 
     # Collect alterations and their repetitions
     alterations = []
-    if not args.no_alterations:  # Only collect alterations if the flag is not set
-        if args.add_activity:
-            alterations.append(("add_activity", args.add_activity))
-        if args.add_flow:
-            alterations.append(("add_flow", args.add_flow))
-        if args.add_gateway:
-            alterations.append(("add_gateway", args.add_gateway))
-        if args.remove_activity:
-            alterations.append(("remove_activity", args.remove_activity))
-
-        if args.remove_flow:
-            alterations.append(("remove_flow", args.remove_flow))
-        if args.remove_gateway:
-            alterations.append(("remove_gateway", args.remove_gateway))
-        if args.change_label:
-            alterations.append(("change_label", args.change_label))
-        if args.remove_flowNode:
-            for node_id in args.remove_flowNode:
-                alterations.append(("remove_flowNode", node_id))  
-
+    if args.add_activity:
+        alterations.append(("add_activity", args.add_activity))
+    if args.add_flow:
+        alterations.append(("add_flow", args.add_flow))
+    if args.add_gateway:
+        alterations.append(("add_gateway", args.add_gateway))
+    if args.remove_activity:
+        alterations.append(("remove_activity", args.remove_activity))
+    if args.remove_flow:
+        alterations.append(("remove_flow", args.remove_flow))
+    if args.remove_gateway:
+        alterations.append(("remove_gateway", args.remove_gateway))
+    if args.change_label:
+        alterations.append(("change_label", args.change_label))
+    if args.remove_flowNode:
+        for node_id in args.remove_flowNode:
+            alterations.append(("remove_flowNode", node_id))
 
     # Execute the tool
     start_time = time.time()
