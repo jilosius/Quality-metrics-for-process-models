@@ -49,7 +49,7 @@ class Experiment3:
                 except Exception as e:
                     print(f"Failed to apply {alteration}: {e}")
 
-            # Compute similarity metrics
+            # compute similarity metrics
             altered_model = model_alteration.altered_model
             try:
                 node_structural_scores = SimilarityMetric.get_metric("NodeStructuralBehavioralMetric", reference_model, altered_model).calculate()

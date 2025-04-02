@@ -8,19 +8,18 @@ class ModelAlteration:
         self.reference_model = reference_model
         self.altered_model = None
 
-        # Mapping of alteration names to their module and class names
+        # alteration and class name mapping
         self.alteration_mapping = {
             "add_activity": ("add_flowNode", "AddFlowNode"),
             "add_flow": ("add_flow", "AddFlow"),
             "add_gateway": ("add_gateway", "AddGateway"),
             "remove_activity": ("remove_activity", "RemoveActivity"),
-            "remove_flowNode": ("remove_flowNode", "RemoveFlowNode"),
             "remove_flow": ("remove_flow", "RemoveFlow"),
             "remove_gateway": ("remove_gateway", "RemoveGateway"),
             "change_label": ("change_label", "ChangeLabel"),
         }
 
-    def apply_alteration(self, alteration_name: str, repetitions: int = 1, node_id: str = None, tokenizer=None, model=None):
+    def apply_alteration(self, alteration_name: str, repetitions=None, node_id=None, tokenizer=None, model=None):
         if self.altered_model is None or alteration_name == "no_alterations":
             self.altered_model = self.reference_model.clone()
 
@@ -32,9 +31,23 @@ class ModelAlteration:
         alteration_module = __import__(f"model_alteration.{module_name}", fromlist=[class_name])
         alteration_class = getattr(alteration_module, class_name)
 
-        for i in range(repetitions):
+        if isinstance(repetitions, int):
+            for _ in range(repetitions):
+                if alteration_name == "change_label":
+                    alteration_instance = alteration_class(tokenizer=tokenizer, model=model)
+                else:
+                    alteration_instance = alteration_class()
+                self.altered_model = alteration_instance.apply(self.altered_model)
+                print(f"Applied alteration: {alteration_name} on random node")
+
+        elif isinstance(repetitions, list):
+            alteration_instance = alteration_class(node_ids=repetitions)
+            self.altered_model = alteration_instance.apply(self.altered_model)
+            print(f"Applied alteration: {alteration_name} on nodes: {', '.join(repetitions)}")
+
+        else:
             if alteration_name == "change_label":
-                alteration_instance = alteration_class(node_id=node_id, tokenizer=tokenizer, model=model)
+                alteration_instance = alteration_class(tokenizer=tokenizer, model=model)
             elif alteration_name == "remove_flowNode" and node_id:
                 alteration_instance = alteration_class(node_id)
             else:
@@ -44,5 +57,4 @@ class ModelAlteration:
             print(f"Applied alteration: {alteration_name} on {node_id if node_id else 'random node'}")
 
         return self.altered_model
-
 

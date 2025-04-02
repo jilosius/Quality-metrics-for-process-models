@@ -14,7 +14,7 @@ class ChangeLabel:
 
     def is_sentence(self, label: str) -> bool:
         """Decide whether to treat the label as a sentence."""
-        return len(label.strip().split()) > 2  # more than 2 words = likely a sentence
+        return len(label.strip().split()) > 2  # more than 2 words = sentence
 
     def paraphrase(self, sentence: str) -> str:
         try:
@@ -49,7 +49,6 @@ class ChangeLabel:
 
 
     def get_synonym(self, label: str) -> str:
-        """Replace each word with a random synonym from all WordNet synsets."""
         words = label.strip().split()
         new_words = []
 
@@ -78,7 +77,7 @@ class ChangeLabel:
             print("No FlowNodes available to update.")
             return model
 
-        # Choose node
+
         target_node = None
         if self.node_id:
             target_node = next((node for node in model.flowNodes if node.flowNode_id == self.node_id), None)
@@ -90,7 +89,7 @@ class ChangeLabel:
 
         original_label = target_node.label
 
-        # Empty label fallback
+        # empty label
         if not original_label.strip():
             new_label = "new empty label"
         elif self.is_sentence(original_label):

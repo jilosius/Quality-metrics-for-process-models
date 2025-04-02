@@ -15,11 +15,10 @@ class ToolController:
         self.altered_model = None
 
     def execute(self, file_path: str, alterations: list, output_path: str):
-        # Read BPMN model
         print("Reading the BPMN model...")
         reference_bpmn_tree = IOHandler.read_bpmn(file_path)
 
-        # Only load tokenizer/model if change_label is used
+        # load tokenizer/model if change_label is used
         tokenizer = None
         model = None
         if any(alteration == "change_label" for alteration, _ in alterations):
@@ -27,13 +26,13 @@ class ToolController:
             tokenizer = AutoTokenizer.from_pretrained("Vamsi/T5_Paraphrase_Paws")
             model = AutoModelForSeq2SeqLM.from_pretrained("Vamsi/T5_Paraphrase_Paws")
 
-        # Convert process object
+        # convert process object
         print("Converting BPMN model to Process object...")
         self.reference_model = Process()
         self.reference_model.from_bpmn(reference_bpmn_tree.getroot())
         self.reference_model.print_process_state()
 
-        # Perform alterations
+        # perform alterations
         print("\nPerforming alterations...")
         model_alteration = ModelAlteration(self.reference_model)
         
@@ -63,7 +62,7 @@ class ToolController:
 
 
 
-        # Calculating similarity metrics
+
         results_summary = []
         for metric_name in self.metrics:
             
@@ -74,10 +73,10 @@ class ToolController:
                 results = metric.calculate()
             except Exception as e:
                 print(f"Error calculating {metric_name}: {e}")
-            # Collect results for summary printing
+
             results_summary.append((metric_name, results))
 
-        # Print all results at the end in a nice format
+
         print("\nSimilarity Metrics Results:")
         print("===========================")
         for metric_name, results in results_summary:
@@ -151,7 +150,6 @@ class ToolController:
 
 
 if __name__ == "__main__":
-    # Parse command-line arguments
     parser = argparse.ArgumentParser(description="Similarity Tool for BPMN Models")
     parser.add_argument("file_path", type=str, metavar="N", help="Path to the BPMN file to load.")
     parser.add_argument("output_path", type=str, metavar="N", help="Path to save the altered BPMN file.")
@@ -167,7 +165,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    # Collect alterations and their repetitions
+    # collect alterations and their repetitions
     alterations = []
     if args.add_activity:
         alterations.append(("add_activity", args.add_activity))
@@ -177,6 +175,7 @@ if __name__ == "__main__":
         alterations.append(("add_gateway", args.add_gateway))
     if args.remove_activity:
         alterations.append(("remove_activity", args.remove_activity))
+
     if args.remove_flow:
         alterations.append(("remove_flow", args.remove_flow))
     if args.remove_gateway:
@@ -184,10 +183,9 @@ if __name__ == "__main__":
     if args.change_label:
         alterations.append(("change_label", args.change_label))
     if args.remove_flowNode:
-        for node_id in args.remove_flowNode:
-            alterations.append(("remove_flowNode", node_id))
+        alterations.append(("remove_activity", args.remove_flowNode))
 
-    # Execute the tool
+    #execute
     start_time = time.time()
     tool = ToolController()
     tool.execute(args.file_path, alterations, args.output_path)

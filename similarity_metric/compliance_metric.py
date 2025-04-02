@@ -17,7 +17,7 @@ class Parameters(Enum):
 
 
 class ComplianceMetric(SimilarityMetric):
-    def __init__(self, reference_model=None, altered_model=None, file_path=None, output_path=None, label_similarity_threshold=0.2):
+    def __init__(self, reference_model=None, altered_model=None, file_path=None, output_path=None, label_similarity_threshold=0.8):
         super().__init__(reference_model, altered_model)
         self.reference_model = reference_model
         self.altered_model = altered_model
@@ -28,21 +28,10 @@ class ComplianceMetric(SimilarityMetric):
     def convert_to_petri_net(self, bpmn_path):    
         
         bpmn_graph = pm4py.read_bpmn(bpmn_path)
-        # pm4py.view_bpmn(bpmn_graph)
-    
-        # Convert BPMN to Petri net
-        net, im, fm = self.apply(bpmn_graph)
 
-        # # Visualize the Petri net
-        # try:
-        #     from pm4py.visualization.petri_net import visualizer as pn_visualizer
-        #     print("Visualizing the Petri net...")
-        #     gviz = pn_visualizer.apply(net, im, fm)
-        #     pn_visualizer.view(gviz)  # Opens in the default viewer
-        # except ImportError:
-        #     print("Petri net visualization skipped (missing pm4py visualization libraries).")
-        # except Exception as e:
-        #     print(f"An error occurred during visualization: {e}")
+    
+        # convert to Petri net
+        net, im, fm = self.apply(bpmn_graph)
 
         return net, im, fm
 
@@ -113,7 +102,6 @@ class ComplianceMetric(SimilarityMetric):
                 continue
 
             if normalized_marking in visited:
-                # print(f"Marking already visited: {normalized_marking}")
                 continue
             visited.add(normalized_marking)
 
@@ -121,15 +109,11 @@ class ComplianceMetric(SimilarityMetric):
                 t for t in net.transitions if self.is_transition_enabled(t, current_marking)
             ]
 
-            # If no transitions are enabled and it's not the final marking, it's a deadlock
             if not enabled_transitions:
-                # print(f"Deadlock detected at marking: {normalized_marking}")
                 return False
 
-            # Fire transitions and add new markings to the queue
             for transition in enabled_transitions:
                 new_marking = self.fire_transition(transition, current_marking)
-                # print(f"Firing transition {transition.label}: New marking -> {normalize_marking(new_marking)}")
                 queue.append(new_marking)
 
         print("Petri net is sound.")
@@ -268,7 +252,6 @@ class ComplianceMetric(SimilarityMetric):
 
         
 
-        # Compute extended and mapped firing sequences
         ext_ref_sequences = self.get_extended_firing_sequences(ref_sequences)
         print("\nExtended Firing Sequences:")
         for seq in ext_ref_sequences:
@@ -300,10 +283,10 @@ class ComplianceMetric(SimilarityMetric):
         fscm_values = [] 
         for fsc, seq in zip(fsc_values, ext_ref_sequences):  
             if len(seq) > 0: 
-                fscm = fsc / len(seq)  # Calculate FSC Maturity (FSC divided by the sequence length)
+                fscm = fsc / len(seq)  
             else:
                 fscm = 0 
-            fscm_values.append(fscm)  # Append the calculated FSCM value to the list
+            fscm_values.append(fscm)  
 
         print("\nFSC Values:")
         print(fsc_values)
@@ -550,14 +533,7 @@ class ComplianceMetric(SimilarityMetric):
         return net, im, fm
 
     def print_petri_net_details(self, petri_net, initial_marking, final_marking):
-        """
-        Prints the details of a Petri net in a readable format.
 
-        Args:
-            petri_net: The Petri net object.
-            initial_marking: The initial marking of the Petri net.
-            final_marking: The final marking of the Petri net.
-        """
         print("\nPlaces:")
         print("-------")
         for place in petri_net.places:
@@ -587,14 +563,7 @@ class ComplianceMetric(SimilarityMetric):
             print(f"- {place.name}: {tokens} token(s)")
 
     def print_annotated_dp_table(self, dp, seq1, seq2):
-        """
-        Prints the DP table with annotated headers for better debugging and visualization using tabulate.
 
-        Args:
-            dp (list of list): The DP table as a 2D list or numpy array.
-            seq1 (list): Sequence 1 (e.g., reference sequence).
-            seq2 (list): Sequence 2 (e.g., altered sequence).
-        """
         # Add a placeholder for the empty sequence (∅)
         seq1 = ["∅"] + [str(elem) if elem is not None else "None" for elem in seq1]
         seq2 = ["∅"] + [str(elem) if elem is not None else "None" for elem in seq2]
@@ -609,33 +578,4 @@ class ComplianceMetric(SimilarityMetric):
 
 
 
-    # def visualize_petri_net(self, net, im, fm):
-    #     """
-    #     Visualizes the Petri net with its initial and final markings.
-    #     """
-    #     try:
-    #         from pm4py.visualization.petri_net import visualizer as pn_visualizer
-    #         print("Visualizing the Petri net...")
-    #         gviz = pn_visualizer.apply(net, im, fm)
-    #         pn_visualizer.view(gviz)
-    #     except ImportError:
-    #         print("Petri net visualization skipped (missing pm4py visualization libraries).")
-    #     except Exception as e:
-    #         print(f"An error occurred during visualization: {e}")
-
-    #     return net, im, fm
-
-
-
-        # def compute_metric(self, process_object1, process_object2):
-    #     wf_net1 = self.convert_to_wf_net(process_object1)
-    #     wf_net2 = self.convert_to_wf_net(process_object2)
-
-    #     firing_sequences1 = self.extract_firing_sequences(wf_net1)
-    #     firing_sequences2 = self.extract_firing_sequences(wf_net2)
-
-    #     return {
-    #         "firing_sequences_model1": len(firing_sequences1),
-    #         "firing_sequences_model2": len(firing_sequences2)
-    #     }
 

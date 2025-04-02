@@ -14,7 +14,7 @@ class RemoveGateway:
         self.gateway_id = gateway_id
 
     def apply(self, model: Process) -> Process:
-        # Step 1: Find the target gateway to remove
+        
         if self.gateway_id:
             target_gateway = None
             for node in model.flowNodes:
@@ -25,7 +25,7 @@ class RemoveGateway:
                 print(f"Gateway with ID {self.gateway_id} not found or is not a valid gateway. No changes made.")
                 return model
         else:
-            # Randomly select a gateway if none is specified
+            # select random gateway if not specified
             gateways = [node for node in model.flowNodes if node.type in ["exclusiveGateway", "parallelGateway", "inclusiveGateway"]]
             target_gateway = random.choice(gateways) if gateways else None
 
@@ -35,14 +35,14 @@ class RemoveGateway:
 
         print(f"Removing Gateway: {target_gateway.label} (Type: {target_gateway.type})")
 
-        # Step 2: Identify incoming and outgoing flows
+
         incoming_flows = [flow for flow in model.flows if flow.target == target_gateway]
         outgoing_flows = [flow for flow in model.flows if flow.source == target_gateway]
 
         print(f"Incoming flows: {len(incoming_flows)}")
         print(f"Outgoing flows: {len(outgoing_flows)}")
 
-        # Step 3: Create new flows to reconnect nodes
+
         for incoming in incoming_flows:
             for outgoing in outgoing_flows:
                 ModelAlteration.flow_count += 1
@@ -55,7 +55,7 @@ class RemoveGateway:
                 model.flows.append(new_flow)
                 print(f"Added flow: {new_flow.label} ({incoming.source.flowNode_id} -> {outgoing.target.flowNode_id})")
 
-        # Step 4: Remove the target gateway and associated flows
+
         model.flowNodes.remove(target_gateway)
         model.flows = [flow for flow in model.flows if flow.source != target_gateway and flow.target != target_gateway]
 

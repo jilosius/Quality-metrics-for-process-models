@@ -1,53 +1,44 @@
 from .model_alteration import ModelAlteration
 from process.process import Process
 from process.flow import Flow
-
 import random
 
 class RemoveActivity:
 
-    def __init__(self, node_id=None):
-        """
-        Optionally specify the node_id to remove.
-        If None, a random node will be selected.
-        """
-        self.node_id = node_id
+    def __init__(self, node_ids=None):
+        self.node_ids = node_ids if node_ids else []
 
     def apply(self, model: Process) -> Process:
-        # Step 1: Find the target node to remove
-        if self.node_id:
-            target_node = None
-            for node in model.flowNodes:
-                if node.flowNode_id == self.node_id:
-                    target_node = node
-                    break
-            if not target_node:
-                print(f"FlowNode with ID {self.node_id} not found. No changes made.")
-                return model
-        else:
-            # Randomly select any flow node
-            target_node = random.choice(model.flowNodes) if model.flowNodes else None
-
-        if not target_node:
-            print("No valid flow nodes available to remove.")
+        if not model.flowNodes:
+            print("No flow nodes in the model.")
             return model
 
-        print(f"Flow node to remove: {target_node}")
+        if not self.node_ids:
+            # Remove one random node
+            target_node = random.choice(model.flowNodes)
+            return self._remove_node(model, target_node)
 
-        # Step 2: Identify preceding and succeeding nodes
+        # Remove each node by ID
+        for node_id in self.node_ids:
+            target_node = next((n for n in model.flowNodes if n.flowNode_id == node_id), None)
+            if target_node:
+                model = self._remove_node(model, target_node)
+            else:
+                print(f"FlowNode with ID {node_id} not found. Skipping.")
+
+        return model
+
+    def _remove_node(self, model: Process, target_node) -> Process:
+        print(f"Removing FlowNode: {target_node.flowNode_id}")
+
         preceding_nodes = [flow.source for flow in model.flows if flow.target == target_node]
-        print(f"Preceding nodes: {preceding_nodes}")
         succeeding_nodes = [flow.target for flow in model.flows if flow.source == target_node]
-        print(f"Succeeding nodes: {succeeding_nodes}")
 
-        # Step 3: Remove associated flows
-        updated_flows = []
-        for flow in model.flows:
-            if flow.source != target_node and flow.target != target_node:
-                updated_flows.append(flow)
-        model.flows = updated_flows
+        model.flows = [
+            flow for flow in model.flows
+            if flow.source != target_node and flow.target != target_node
+        ]
 
-        # Step 4: Create new flows between preceding and succeeding nodes
         for source in preceding_nodes:
             for target in succeeding_nodes:
                 ModelAlteration.flow_count += 1
@@ -60,8 +51,6 @@ class RemoveActivity:
                 model.flows.append(new_flow)
                 print(f"Added flow: {new_flow.label} ({source.flowNode_id} -> {target.flowNode_id})")
 
-        # Step 5: Remove the target node
         model.flowNodes.remove(target_node)
-
-        print(f"Removed FlowNode: {target_node.flowNode_id} (ID: {target_node.flowNode_id})")
+        print(f"Successfully removed {target_node.flowNode_id}")
         return model

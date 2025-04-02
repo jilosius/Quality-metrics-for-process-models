@@ -4,26 +4,25 @@ from similarity_metric.similarity_metric import SimilarityMetric
 
 class F1Score(SimilarityMetric):
 
-    def __init__(self, reference_model, altered_model, label_similarity_threshold=0.2):
+    def __init__(self, reference_model, altered_model, label_similarity_threshold=0.8):
         super().__init__(reference_model, altered_model)
         self.label_similarity_threshold = label_similarity_threshold
     
     def calculate_similarity(self, label1, label2, type1, type2):
-        # print(f"Calculating similarity between labels: '{label1}' and '{label2}'")
+
 
         type_similarity = self.calculate_type_similarity(type1, type2)
-        # print(f"  Type similarity: {type_similarity}")
+
 
         if type_similarity == 1:
             syntactic_score = self.calculate_syntactic_similarity(label1, label2)
             semantic_score = self.calculate_semantic_similarity(label1, label2)
-            # print(f"  Syntactic similarity: {syntactic_score}\n  Semantic similarity: {semantic_score}")
+
             
             return max(syntactic_score, semantic_score)
         
         elif type_similarity == 0:
-            # print("Flow Nodes not of same type. Moving on..")
-            # print("-----------")
+
             return 0.0
 
         else:
@@ -35,34 +34,25 @@ class F1Score(SimilarityMetric):
         for ref_node in reference_flowNodes:
             best_match = None
             best_score = 0
-            # print("")
-            # print(f"\nReference node: {ref_node.flowNode_id} ({ref_node.type})")
+
             for alt_node in altered_flowNodes:
-                # print(f"  Altered node: {alt_node.flowNode_id} ({alt_node.type})")
                 similarity = self.calculate_similarity(ref_node.label, alt_node.label, ref_node.type, alt_node.type)
-                # print(f"Label Similarity: {similarity}")
-                # print("-----------")
+
                 if similarity >= self.label_similarity_threshold and similarity > best_score:
                     best_match = alt_node
                     best_score = similarity
             if best_match:
-                # print(f"  Best match for node '{ref_node.label}': '{best_match.label}' with score {best_score}")
                 matches.append((ref_node, best_match))
-            # else:
-                # print(f"  No match with same type & similarity > {self.label_similarity_threshold} found for node '{ref_node.label}'")
 
-            # print(matches)
         return matches
 
     def match_flows(self, reference_flows, altered_flows):
         matches = []
-        # print("\n========= Matching flows between reference and altered models =========")
         for ref_flow in reference_flows:
             for alt_flow in altered_flows:
                 source_match = self.match_nodes([ref_flow.source], [alt_flow.source])
                 target_match = self.match_nodes([ref_flow.target], [alt_flow.target])
                 if source_match and target_match:
-                    # print(f"Matched flow: {ref_flow.source.flowNode_id} -> {ref_flow.target.flowNode_id} with {alt_flow.source.flowNode_id} -> {alt_flow.target.flowNode_id}")
                     matches.append((ref_flow, alt_flow))
                     break
         return matches

@@ -90,7 +90,7 @@ class Experiment:
                     print(f"Error calculating {metric_names[2]}: {e}")
                     compliance_scores = {"compliance_degree": 0, "compliance_maturity": 0}
 
-                # Store the results safely
+                # store the results
                 result_entry = (
                     num_alterations,
                     repetition + 1,

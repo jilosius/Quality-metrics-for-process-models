@@ -144,34 +144,18 @@ class NodeStructuralBehavioralMetric(SimilarityMetric):
         outgoing_neighbors2 = set(nx.descendants(graph2, node2))  
 
 
-        # Debugging: Print neighbors
-        # print(f"\nNode1: {node1}")
-        # print(f"Incoming Neighbors of Node1: {incoming_neighbors1}")
-        # print(f"Outgoing Neighbors of Node1: {outgoing_neighbors1}")
-        # print("------")
-        # print(f"Node2: {node2}")
-        # print(f"Incoming Neighbors of Node2: {incoming_neighbors2}")
-        # print(f"Outgoing Neighbors of Node2: {outgoing_neighbors2}\n")
-
-
-        # Calculate optimal equivalence mappings for input and output contexts
+ 
+        # optimal equivalence mappings for input and output contexts
         optimal_in_mapping = self.calculate_contextual_equivalence_mapping(incoming_neighbors1, incoming_neighbors2.copy(), graph1, graph2)
         optimal_out_mapping = self.calculate_contextual_equivalence_mapping(outgoing_neighbors1, outgoing_neighbors2.copy(), graph1, graph2)
 
-        # print(f"\nOptimal Input Mapping Size: {len(optimal_in_mapping)}")
-        # print(f"Optimal Output Mapping Size: {len(optimal_out_mapping)}\n")
-        # print(f"len(incoming_neighbors1): {len(incoming_neighbors1)}\n")
-        
-        # print(f"len(incoming_neighbors2): {len(incoming_neighbors2)}\n")
-        # print(f"len(outgoing_neighbors1): {len(outgoing_neighbors1)}\n")
-        # print(f"len(outgoing_neighbors2): {len(outgoing_neighbors2)}\n")
+ 
         
 
         if len(incoming_neighbors1) > 0 and len(incoming_neighbors2) > 0:
             test1 = len(optimal_in_mapping) / (2 * (len(incoming_neighbors1) ** 0.5) * (len(incoming_neighbors2) ** 0.5))
 
         else:
-            # print("Skipping input context calculation (empty neighbor sets)")
             test1 = 0 
 
         if len(outgoing_neighbors1) > 0 and len(outgoing_neighbors2) > 0:
@@ -179,20 +163,12 @@ class NodeStructuralBehavioralMetric(SimilarityMetric):
 
         else:
             test2 = 0  
-       
-
-        # print(f"\nInput Context Similarity: {test1}")
-
-        # print(f"Output Context Similarity: {test2}\n")
-        
 
         contextual_similarity = test1 + test2
 
-        
-        
         return contextual_similarity
 
-    def node_matching_similarity(self, threshold=0.2, ignore_types=None):
+    def node_matching_similarity(self, threshold=0.8, ignore_types=None):
         if ignore_types is None:
             ignore_types = set()
 
@@ -369,18 +345,12 @@ class NodeStructuralBehavioralMetric(SimilarityMetric):
         return causal_footprint
     
     def generate_index_terms(self, causal_footprint1, causal_footprint2):
-        # print("-------")
-        # print("\n Causal Footprint1: ")
-        # self.print_causal_footprint(causal_footprint1)
-        # print("-------")
-        # print("\n Causal Footprint2: ")
-        # self.print_causal_footprint(causal_footprint2)
 
-        # Step 1: Calculate mapped activities using calculate_optimal_equivalence_mapping
+        #mapped activities
         reference_nodes = list(self.reference_graph.nodes())
         altered_nodes = list(self.altered_graph.nodes())
         
-        # Use calculate_optimal_equivalence_mapping to get mapped activities
+        # mapped activities
         optimal_mapping = self.matched_pairs
         self.mapping = {a1: a2 for a1, a2 in optimal_mapping}  
         mapped_activities = set(optimal_mapping)  
@@ -389,7 +359,7 @@ class NodeStructuralBehavioralMetric(SimilarityMetric):
         print("\nmapped_activities: ", mapped_activities)
         print("\n-------")
 
-        # Step 2: Identify unmapped activities
+        # unmapped activities
         mapped_reference_nodes = set(a1 for a1, _ in mapped_activities)
         mapped_altered_nodes = set(a2 for _, a2 in mapped_activities)
         
@@ -398,7 +368,7 @@ class NodeStructuralBehavioralMetric(SimilarityMetric):
         unmapped_activities2 = set(altered_nodes) - mapped_altered_nodes
         print(f"Unmapped alt graph: {unmapped_activities2}")
 
-        # Step 3: Extract causal links
+        # causal links
         look_back_links1 = {
             (target, source)
             for target, links in causal_footprint1.items()
@@ -440,7 +410,7 @@ class NodeStructuralBehavioralMetric(SimilarityMetric):
         ))
         print("------")
 
-        # Step 4: Combine all index terms
+ 
         return mapped_activities.union(
             unmapped_activities1, unmapped_activities2, look_back_links1, look_ahead_links1, look_back_links2, look_ahead_links2
         )
@@ -529,11 +499,10 @@ class NodeStructuralBehavioralMetric(SimilarityMetric):
         
         print("\n-------")
 
-        # Reshape vectors into 2D since sklearn expects 2D arrays
         vector1 = np.array(vector1).reshape(1, -1)
         vector2 = np.array(vector2).reshape(1, -1)
 
-        similarity = cosine_similarity(vector1, vector2)[0][0]  # Extract scalar value
+        similarity = cosine_similarity(vector1, vector2)[0][0]  
         return similarity
     
     def calculate_behavioral_similarity(self):

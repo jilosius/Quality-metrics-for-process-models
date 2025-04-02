@@ -34,7 +34,7 @@ tool/
 ├── tables/                             # Contains output LaTeX tables
 ├── combination_alterations_experiment.py   # Experiment with combinations of alterations
 ├── io_handler.py                      # Handles reading/writing BPMN models
-├── metric_profiles.ipynb              # Jupyter notebook analyzing metric behavior
+├── metric_profiles.ipynb              # Jupyter notebook analyzing metric behavior, plots and testing
 ├── rq1_experiment.py                  # Experiment for answering RQ1                   (25 iterations each alteration)
 ├── test_process.py                    # Test importing processes              
 └── tool_controller.py                 # Main controller                                (1 iteration)

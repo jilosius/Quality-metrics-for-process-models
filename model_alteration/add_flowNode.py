@@ -22,7 +22,7 @@ class AddFlowNode:
         )
 
     def apply(self, model: Process) -> Process:
-        # Step 1: Assign a unique ID and label
+
         ModelAlteration.flowNode_count += 1
         element_id = f"{self.element_type}_{ModelAlteration.flowNode_count}"
         element_label = (
@@ -34,10 +34,8 @@ class AddFlowNode:
             self.gateway_type if self.element_type == "gateway" else self.element_type
         )
 
-        # Step 2: Randomly assign a lane ID
         lane_id = random.choice(model.lanes).lane_id if model.lanes else None
 
-        # Step 3: Create the new node
         new_node = FlowNode(
             flowNode_id=element_id,
             label=element_label,
@@ -46,13 +44,11 @@ class AddFlowNode:
         )
         model.flowNodes.append(new_node)
 
-        # Step 4: Ensure sufficient nodes for connections
         if len(model.flowNodes) < 2:
             print(f"Not enough nodes to connect {element_label}.")
             return model
 
-        # Step 5: Randomly select source and target nodes
-        # End nodes cannot have outgoing flows
+ 
         potential_sources = [
             node for node in model.flowNodes
             if node != new_node and node.type.lower() != "endevent"
@@ -62,7 +58,7 @@ class AddFlowNode:
             return model
         source_node = random.choice(potential_sources)
 
-        # Start nodes cannot have incoming flows
+ 
         potential_targets = [
             node for node in model.flowNodes
             if node != source_node and node != new_node and node.type.lower() != "startevent"
@@ -72,7 +68,6 @@ class AddFlowNode:
             return model
         target_node = random.choice(potential_targets)
 
-        # Step 6: Create new flows
         ModelAlteration.flow_count += 1
         flow_to_node = Flow(
             flow_id=f"flow_{ModelAlteration.flow_count}",
@@ -89,7 +84,6 @@ class AddFlowNode:
         )
         model.flows.extend([flow_to_node, flow_from_node])
 
-        # Step 7: Debugging info
         if lane_id:
             print(f"Added {element_label} ({element_type}) in lane {lane_id} between {source_node.flowNode_id} and {target_node.flowNode_id}")
         else:

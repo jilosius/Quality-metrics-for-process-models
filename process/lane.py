@@ -4,7 +4,7 @@ from .data_obj import DataObj
 class Lane:
     def __init__(self, lane_id: str):
         self.lane_id = lane_id
-        self.flowNodes = []  # List of Activity objects
+        self.flowNodes = []  
 
     def add_flowNode(self, flowNode: FlowNode):
         self.flowNodes.append(flowNode)

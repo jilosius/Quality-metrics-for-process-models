@@ -4,7 +4,7 @@ from Levenshtein import ratio
 import spacy
 
 class SimilarityMetric(ABC):
-    nlp = spacy.load("en_core_web_md")  # Shared spaCy model
+    nlp = spacy.load("en_core_web_md")  # shared spaCy model
 
     def __init__(self, reference_model, altered_model):
         self.reference_model = reference_model
@@ -12,18 +12,15 @@ class SimilarityMetric(ABC):
 
     @staticmethod
     def calculate_syntactic_similarity(label1, label2):
-        """Calculate syntactic similarity between two labels."""
-        # Normalize labels by converting to lowercase and stripping whitespace
+
         label1 = label1.strip().lower()
         label2 = label2.strip().lower()
         
-        # Calculate and return similarity
         return ratio(label1, label2)
 
 
     @classmethod
     def calculate_semantic_similarity(cls, label1, label2):
-        """Calculate semantic similarity between two labels using spaCy."""
         if not label1 or not label2:
             return 0.0
         doc1 = cls.nlp(label1)
@@ -32,7 +29,6 @@ class SimilarityMetric(ABC):
 
     @staticmethod
     def calculate_type_similarity(type1, type2):
-        """Calculate type similarity between two node types."""
         return 1.0 if type1 == type2 else 0.0
 
     @abstractmethod
